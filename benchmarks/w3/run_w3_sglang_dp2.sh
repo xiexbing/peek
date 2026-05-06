@@ -1,19 +1,17 @@
 #!/bin/bash
-# W4 (TP=2 DP=2 router robustness) — same two cells as run_w4_sglang.sh,
-# but the server is launched via sglang's router with 2 DP replicas
-# (each TP=2). Total 4 GPUs.
+# W3 SGLang DP=2 (paper §4.3, multi-GPU 70B). Server is launched via sglang's
+# router with 2 DP replicas (each TP=2). Total 4 GPUs.
 #
-# Differences vs run_w4_sglang.sh:
+# Architecture:
 #   - launcher: `python -m sglang_router.launch_server` (router co-launches
 #     workers and load-balances in front of them)
 #   - --tp 2 --dp-size 2 (cluster capacity ~2x; KV pool per replica ~16,754)
-#   - --router-policy cache_aware (default; prefix-aware, matches W4 intent)
-#   - results dir: $REPO_ROOT/benchmarks/w4/results_dp2  (separate from DP=1)
+#   - --router-policy cache_aware (default; prefix-aware)
+#   - results dir: $REPO_ROOT/benchmarks/w3/results_sglang_dp2/
 #
-# Cells C and B inherit the same workload knobs via CELL=C|B and DECODE_MIX,
-# matching the DP=1 runner. Concurrency cap stays at 180 by default for
-# apples-to-apples comparison; adjust via env if you want to push the
-# DP=2 capacity.
+# Cells C and B mirror W1 (chat-like, admission-bound) and W2 (RAG-like,
+# decode-bound); see benchmarks/w3/README.md. Concurrency cap stays at 180
+# by default for apples-to-apples comparison.
 
 set -uo pipefail
 
@@ -24,7 +22,7 @@ MODEL="${MODEL:-meta-llama/Llama-3.1-70B-Instruct}"
 PORT="${PORT:-30000}"
 MEM_FRAC="${MEM_FRAC:-0.88}"
 HF_HOME="${HF_HOME:-/workspace/.cache/huggingface}"
-RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w4/results_dp2}"
+RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w3/results_sglang_dp2}"
 
 TP="${TP:-2}"
 DP="${DP:-2}"
@@ -70,7 +68,7 @@ policy_env() {
 launch_server() {
   local policy="$1" slog="$2"
   local env_pref; env_pref="$(policy_env "$policy")"
-  echo "[w4-dp2] launching $policy router (tp=$TP dp=$DP policy=$ROUTER_POLICY env='$env_pref')"
+  echo "[w3-dp2] launching $policy router (tp=$TP dp=$DP policy=$ROUTER_POLICY env='$env_pref')"
   env HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME/hub" \
       HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
       $env_pref "$PY" -m sglang_router.launch_server \
@@ -97,13 +95,13 @@ launch_server() {
         -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1,\"temperature\":0}" \
         "http://127.0.0.1:$PORT/v1/chat/completions" 2>/dev/null || echo 000)
       if [[ "$code" == "200" ]]; then
-        echo "[w4-dp2]   ready after $(( $(date +%s) - t0 ))s (models listed + 1-tok smoke OK)"
+        echo "[w3-dp2]   ready after $(( $(date +%s) - t0 ))s (models listed + 1-tok smoke OK)"
         sleep 3
         return 0
       fi
     fi
     if (( $(date +%s) - t0 > 1200 )); then
-      echo "[w4-dp2]   server failed to start in 1200s"
+      echo "[w3-dp2]   server failed to start in 1200s"
       return 1
     fi
     sleep 10
@@ -112,7 +110,7 @@ launch_server() {
 
 flush_cache() {
   curl -s -X POST "http://127.0.0.1:$PORT/flush_cache" >/dev/null 2>&1 \
-    && echo "[w4-dp2]   /flush_cache ok" || echo "[w4-dp2]   /flush_cache failed"
+    && echo "[w3-dp2]   /flush_cache ok" || echo "[w3-dp2]   /flush_cache failed"
   sleep 2
 }
 
@@ -125,10 +123,10 @@ run_bench() {
   local out="$outdir/${policy}.json"
   local blog="$outdir/_run_${policy}.log"
   if [[ -f "$out" ]]; then
-    echo "[w4-dp2]   skip: $out already exists"
+    echo "[w3-dp2]   skip: $out already exists"
     return 0
   fi
-  echo "[w4-dp2]   benching $policy seed=$seed cell=$CELL G=$NGROUPS prefix=$PREFIX_TOKENS concurrency=$CONCURRENCY decode_mix='${DECODE_MIX:-fixed=128}' -> $out"
+  echo "[w3-dp2]   benching $policy seed=$seed cell=$CELL G=$NGROUPS prefix=$PREFIX_TOKENS concurrency=$CONCURRENCY decode_mix='${DECODE_MIX:-fixed=128}' -> $out"
   local decode_args=()
   if [[ -n "$DECODE_MIX" ]]; then
     decode_args=(--decode-mix "$DECODE_MIX")
@@ -149,20 +147,20 @@ run_bench() {
     --label "${policy}_cell${CELL}_seed${seed}_${RATE_LABEL}_dp${DP}" \
     --output "$out" \
     > "$blog" 2>&1
-  echo "[w4-dp2]   $policy seed=$seed done"
+  echo "[w3-dp2]   $policy seed=$seed done"
 }
 
 # --- main ----------------------------------------------------------------
 
-echo "[w4-dp2] === START === $(date)"
-echo "[w4-dp2] tp=$TP dp=$DP router=$ROUTER_POLICY"
-echo "[w4-dp2] cell=$CELL G=$NGROUPS prefix=$PREFIX_TOKENS N=$N warmup=$WARMUP concurrency=$CONCURRENCY"
-echo "[w4-dp2] policies=$POLICIES  seeds=$SEEDS"
-echo "[w4-dp2] results -> $RESULTS_DIR"
+echo "[w3-dp2] === START === $(date)"
+echo "[w3-dp2] tp=$TP dp=$DP router=$ROUTER_POLICY"
+echo "[w3-dp2] cell=$CELL G=$NGROUPS prefix=$PREFIX_TOKENS N=$N warmup=$WARMUP concurrency=$CONCURRENCY"
+echo "[w3-dp2] policies=$POLICIES  seeds=$SEEDS"
+echo "[w3-dp2] results -> $RESULTS_DIR"
 
 for policy in $POLICIES; do
   echo
-  echo "[w4-dp2] ##### policy: $policy #####"
+  echo "[w3-dp2] ##### policy: $policy #####"
   kill_server
   launch_server "$policy" "$RESULTS_DIR/_server_${policy}.log" || exit 1
   for seed in $SEEDS; do
@@ -173,4 +171,4 @@ done
 
 kill_server
 echo
-echo "[w4-dp2] === DONE === $(date)"
+echo "[w3-dp2] === DONE === $(date)"

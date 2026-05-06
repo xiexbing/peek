@@ -1,5 +1,5 @@
 #!/bin/bash
-# W4 cell C/B vLLM-side DP=2 runner.
+# W3 cell C/B vLLM-side DP=2 runner (paper §4.3, multi-GPU 70B, 4 GPUs).
 #
 # Architecture:
 #   vllm-A: TP=2 on GPUs 0,1 at port 31000  (--enable-prefix-caching)
@@ -13,11 +13,9 @@
 # captures hit-rate without code changes.
 #
 # Peek hooks:
-#   /workspace/peek/lib/python3.12/site-packages/peek_vllm.pth bootstraps
-#   peek.online.engines.vllm.patch_hook on every Python interpreter startup, so
-#   each vllm worker (parent + spawned EngineCore child) inherits the
-#   hooks gated by PEEK_* env vars. PEEK_ONLINE_EVICTION_MODE=cluster matches the
-#   W4 vllm spec.
+#   peek.online.engines.vllm.patch_hook is loaded via the sitecustomize.py
+#   shim on PYTHONPATH, so each vllm worker (parent + spawned EngineCore
+#   child) inherits the hooks gated by PEEK_ONLINE_* env vars.
 
 set -uo pipefail
 
@@ -34,7 +32,7 @@ WORKER_B_PORT="${WORKER_B_PORT:-31001}"
 
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.88}"
 HF_HOME="${HF_HOME:-/workspace/.cache/huggingface}"
-RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w4/results_vllm_dp2}"
+RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w3/results_vllm_dp2}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-9728}"
 ROUTER_POLICY="${ROUTER_POLICY:-cache_aware}"
 
