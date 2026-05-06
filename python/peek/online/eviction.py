@@ -46,17 +46,34 @@ _PROFILE = os.environ.get("PEEK_ONLINE_PROFILE", "").lower() in ("1", "true", "y
 _DEBUG = os.environ.get("PEEK_ONLINE_EVICTION_DEBUG", "").lower() in ("1", "true", "yes", "on")
 
 # Eviction policy variants (PEEK_ONLINE_EVICTION_MODE):
-#   plain          — (demand×depth, last_access). Current default.
-#   demand_recency — (demand×depth − W·age_sec, last_access). Additive recency
-#                    penalty; older nodes lose demand-protection quickly.
-#                    PEEK_ONLINE_EVICTION_RECENCY_W (default 100) tokens-at-risk/sec.
-#   demand_cluster — (demand×depth × (1 + levels), last_access). Extra multi-
-#                    plier for deeper ancestor chains — favors longer
-#                    sharing structures (more cluster levels).
-#   demand_decay   — (demand×depth × exp(-age/tau), last_access). Multi-
-#                    plicative exponential decay. PEEK_ONLINE_EVICTION_DECAY_TAU
-#                    (default 30s) sets the half-life.
-_EVICTION_MODE = os.environ.get("PEEK_ONLINE_EVICTION_MODE", "plain").lower()
+#   plain    — (demand×depth, last_access). Default.
+#   cluster  — (demand×depth × (1 + levels), last_access). Extra multiplier
+#              for deeper ancestor chains — favors longer sharing structures.
+#              Paper §3.2 primary mode; the cLPM+GM+DL+PE config uses this.
+#   recency  — (demand×depth − W·age_sec, last_access). Additive recency
+#              penalty; older nodes lose demand-protection quickly.
+#              PEEK_ONLINE_EVICTION_RECENCY_W (default 100) tokens-at-risk/sec.
+#   decay    — (demand×depth × exp(-age/tau), last_access). Multiplicative
+#              exponential decay. PEEK_ONLINE_EVICTION_DECAY_TAU (default 30s).
+#
+# Legacy names `demand_cluster`, `demand_recency`, `demand_decay` are
+# accepted as aliases for the un-prefixed forms.
+_EVICTION_MODE_ALIASES = {
+    "demand_cluster": "cluster",
+    "demand_recency": "recency",
+    "demand_decay": "decay",
+}
+_RAW_EVICTION_MODE = os.environ.get("PEEK_ONLINE_EVICTION_MODE", "plain").lower()
+_EVICTION_MODE = _EVICTION_MODE_ALIASES.get(_RAW_EVICTION_MODE, _RAW_EVICTION_MODE)
+if _EVICTION_MODE not in ("plain", "cluster", "recency", "decay"):
+    import warnings as _warnings
+    _warnings.warn(
+        f"peek.eviction: PEEK_ONLINE_EVICTION_MODE={_RAW_EVICTION_MODE!r} not "
+        f"recognized; falling back to 'plain'. Valid modes: "
+        f"plain, cluster, recency, decay.",
+        stacklevel=2,
+    )
+    _EVICTION_MODE = "plain"
 _EVICTION_RECENCY_W = float(os.environ.get("PEEK_ONLINE_EVICTION_RECENCY_W", "100"))
 _EVICTION_DECAY_TAU = float(os.environ.get("PEEK_ONLINE_EVICTION_DECAY_TAU", "30.0"))
 _DEBUG_PATH = os.environ.get(
@@ -171,19 +188,19 @@ class PeekDemandStrategy:
         # demand_count × path_len (tokens-at-risk). Variants layer on top.
         if _EVICTION_MODE == "plain":
             priority = demand
-        elif _EVICTION_MODE == "demand_recency":
-            age = max(0.0, time.time() - last_access) if last_access else 0.0
-            priority = int(demand - _EVICTION_RECENCY_W * age)
-        elif _EVICTION_MODE == "demand_cluster":
+        elif _EVICTION_MODE == "cluster":
             # Multiplier (1 + n_levels) rewards deeper ancestor chains
             # (more levels of sharing) above equal-demand siblings.
             priority = demand * (1 + n_levels)
-        elif _EVICTION_MODE == "demand_decay":
+        elif _EVICTION_MODE == "recency":
+            age = max(0.0, time.time() - last_access) if last_access else 0.0
+            priority = int(demand - _EVICTION_RECENCY_W * age)
+        elif _EVICTION_MODE == "decay":
             age = max(0.0, time.time() - last_access) if last_access else 0.0
             decay = math.exp(-age / _EVICTION_DECAY_TAU) if _EVICTION_DECAY_TAU > 0 else 1.0
             priority = int(demand * decay)
         else:
-            priority = demand  # unknown mode → safe fallback
+            priority = demand  # unreachable: validated above
 
         if _DEBUG:
             now = time.time()

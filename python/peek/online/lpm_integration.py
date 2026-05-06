@@ -33,14 +33,35 @@ that LPM alone cannot produce:
      all-cold regime (everyone tied at main_hit=0) and the mid-warm regime
      (many reqs tied on a shared cached prefix).
 
-Sort key:
+This module exposes two sort entry points:
 
-    (-main_hit, is_deprioritized_sibling, -cluster_size, rid)
+* ``peek_lpm_sort_inplace`` — LPM-equivalent sort. Key (3-tuple, with
+  ``rank_by_cluster_size=False``):
 
-Singletons and cluster pioneers interleave by main_hit; among ties, bigger
-clusters win; at the tail of each tie bucket sit the deprioritized siblings.
-When the queue has no shared-prefix structure at all, every req has
-cluster_size=0 and peek's sort degrades exactly to LPM.
+      (-main_hit, is_deprioritized, rid)
+
+  Byte-identical to stock sglang LPM. With ``rank_by_cluster_size=True``
+  the key becomes ``(-main_hit, cluster_node_id, is_deprioritized, rid)``
+  which groups same-cluster reqs adjacently without ranking clusters by
+  size.
+
+* ``peek_clpm_sort_inplace`` — Cluster-LPM (paper §3.2, Eq. 1). Lane A
+  key (5-tuple):
+
+      (section, -main_hit, -req_score, -cluster_size, arrival_ns)
+
+  where ``section`` ∈ {0=warm, 1=pioneer, 2=sibling} is the primary key,
+  ``req_score = Σ pending_count(v)·|edge(v)|`` along the rid's path
+  through the pending tree, and ``cluster_size`` is the pending_count at
+  the rid's deepest ≥2 ancestor. cLPM stride-interleaves Lane A with a
+  fairness Lane B keyed by ``(section, arrival_ns, -main_hit)`` (paper
+  §3.2 multi-lane scheduler).
+
+When the queue has no shared-prefix structure, ``req_score`` and
+``cluster_size`` are 0 for every rid and cLPM's ordering degenerates to
+``(section, -main_hit, arrival)`` — which is paper-stock LPM with the
+section flag promoted to primary. The ``has_sharing`` guard (Rust core)
+short-circuits this path entirely on no-sharing queues (paper §3.3).
 
 This module reads sglang's radix cache indirectly via `prefix_indices`
 populated on each req by the caller, and reads peek's pending tree directly

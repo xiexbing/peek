@@ -37,8 +37,11 @@ except ImportError:  # pragma: no cover — pure-Python (offline-only) install.
     PendingTree = None  # type: ignore
     _CORE_AVAILABLE = False
 
+from peek.online.eviction import PeekDemandStrategy
+
 __all__ = [
     "PendingTree",
+    "PeekDemandStrategy",
     "online",
     "offline",
 ]

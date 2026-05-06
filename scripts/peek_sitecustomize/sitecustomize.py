@@ -44,13 +44,19 @@ def _peek_active() -> bool:
 
 
 if _peek_active():
-    try:
-        import peek.engines.vllm.patch_hook  # noqa: F401
-    except Exception as _e:
-        # Don't kill the interpreter if peek's import path is broken — fall
-        # back to vanilla so the run still goes through (clearly logged).
-        import logging as _logging
-        _logging.getLogger("peek.sitecustomize").warning(
-            "peek sitecustomize: failed to import patch_hook (%s); "
-            "running vanilla", _e,
-        )
+    import logging as _logging
+    _log = _logging.getLogger("peek.sitecustomize")
+    for _mod in (
+        "peek.online.engines.vllm.patch_hook",
+        "peek.online.engines.sglang.patch_hook",
+    ):
+        try:
+            __import__(_mod)
+        except ModuleNotFoundError:
+            # Engine not installed in this interpreter; skip silently.
+            pass
+        except Exception as _e:
+            _log.warning(
+                "peek sitecustomize: %s import failed (%s); engine will run vanilla",
+                _mod, _e,
+            )
