@@ -14,7 +14,7 @@
 #
 # Peek hooks:
 #   /workspace/peek/lib/python3.12/site-packages/peek_vllm.pth bootstraps
-#   peek.engines.vllm.patch_hook on every Python interpreter startup, so
+#   peek.online.engines.vllm.patch_hook on every Python interpreter startup, so
 #   each vllm worker (parent + spawned EngineCore child) inherits the
 #   hooks gated by PEEK_* env vars. PEEK_ONLINE_EVICTION_MODE=cluster matches the
 #   W4 vllm spec.

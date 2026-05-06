@@ -1,22 +1,22 @@
 #!/bin/bash
-# W2 — Agentic LLM serving runner.
+# W4 — Agentic LLM serving runner (paper §4.4).
 #
 # Workload: Mooncake conversation_trace, num_rounds=4 burst with tight
-# inter-turn gap (LogNormal median=200ms) — models tool-chain bursts as in
-# Cursor / Copilot / Claude Code / RAG pipelines.
+# inter-turn gap — models tool-chain bursts as in Cursor / Copilot /
+# Claude Code / RAG pipelines.
 #
-# Policies (3-way ablation):
-#   lpm_lru       SGLang LPM    + LRU                            — baseline
-#   clpm_gm_dl   peek_flpm+gm+dyn + LRU                          — scheduling-only
-#   clpm_gm_dl_pe   peek_flpm+gm+dyn + peek_evict demand_cluster    — co-design
+# Policies (paper Table 2 labels):
+#   lpm_lru        SGLang LPM + LRU                                 — baseline
+#   clpm_gm_dl     cLPM + GM + DL + LRU                             — scheduling-only
+#   clpm_gm_dl_pe  cLPM + GM + DL + queue-aware (cluster) eviction  — full PEEK
 #
-# Cells (calibrated against lpm_lru — see production_scenarios.md):
-#   moderate  num_prompts=30  → mean queue ~30–50, peak ~80
-#   heavy     num_prompts=60  → mean queue ~80–150, peak ~200
+# Cells (calibrated against lpm_lru):
+#   moderate  num_prompts=30   → mean queue ~30–50,  peak ~80
+#   heavy     num_prompts=120  → mean queue ~80–150, peak ~200
 #
 # Usage:
-#   bash run_w2_agentic.sh                       # full matrix, 1 seed
-#   POLICIES="lpm_lru clpm_gm_dl" SEEDS=42 bash run_w2_agentic.sh   # subset
+#   bash benchmarks/w4/run_w4_sglang.sh                              # full matrix
+#   POLICIES="lpm_lru clpm_gm_dl" SEEDS=42 bash run_w4_sglang.sh     # subset
 
 set -uo pipefail
 

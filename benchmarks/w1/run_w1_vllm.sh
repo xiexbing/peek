@@ -276,8 +276,8 @@ echo "[w1] results → $RESULTS_DIR"
 echo
 
 # Preflight: peek import + sitecustomize present.
-"$PY" -c "import peek.engines.vllm.patch_hook" 2>/dev/null \
-  || { echo "[w1] preflight FAIL: peek.engines.vllm.patch_hook not importable — run 'maturin develop --release' first"; exit 1; }
+"$PY" -c "import peek.online.engines.vllm.patch_hook" 2>/dev/null \
+  || { echo "[w1] preflight FAIL: peek.online.engines.vllm.patch_hook not importable — run 'maturin develop --release' first"; exit 1; }
 [[ -f "$SITECUSTOMIZE_DIR/sitecustomize.py" ]] \
   || { echo "[w1] preflight FAIL: sitecustomize shim missing: $SITECUSTOMIZE_DIR/sitecustomize.py"; exit 1; }
 

@@ -202,8 +202,8 @@ echo "[w4] inter-turn gap: LogNormal(median=${INTER_TURN_MEDIAN_MS}ms, sigma=${I
 echo "[w4] results → $RESULTS_DIR"
 
 # Preflight
-"$PY" -c "import peek.engines.vllm.patch_hook" 2>/dev/null \
-  || { echo "[w4] preflight FAIL: peek.engines.vllm.patch_hook not importable"; exit 1; }
+"$PY" -c "import peek.online.engines.vllm.patch_hook" 2>/dev/null \
+  || { echo "[w4] preflight FAIL: peek.online.engines.vllm.patch_hook not importable"; exit 1; }
 [[ -f "$SITECUSTOMIZE_DIR/sitecustomize.py" ]] \
   || { echo "[w4] preflight FAIL: sitecustomize shim missing: $SITECUSTOMIZE_DIR/sitecustomize.py"; exit 1; }
 [[ -f "$MOONCAKE_PATH" ]] \
