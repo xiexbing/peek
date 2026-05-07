@@ -5196,7 +5196,7 @@ class ServerArgs:
                 self.disable_overlap_schedule
             ), "PD-Multiplexing is not compatible with overlap schedule."
 
-            # NOTE: CUDA Green Context may encounter potential issues with CudaGraph on torch 2.7.x – 2.8.x, leading to performance degradation.
+            # NOTE: CUDA Green Context may encounter potential issues with CudaGraph on torch 2.7.x - 2.8.x, leading to performance degradation.
             import torch
 
             if torch_release >= (2, 7):

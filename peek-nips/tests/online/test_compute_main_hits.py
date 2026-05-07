@@ -16,7 +16,7 @@
 
 The walk queries the cache ONCE PER EDGE in peek's tree, never per rid. When
 the cache diverges within an edge, every rid in that subtree is assigned the
-same main_hit — no further cache calls for that branch.
+same main_hit -- no further cache calls for that branch.
 
 Default mode skips subtrees with pending_count < 2 (singleton-tail subtrees)
 to match the typical LLM serving assumption that per-request tails are
@@ -32,7 +32,7 @@ def test_empty_tree():
 
 
 def test_solitary_req_still_queried_by_default():
-    """A solitary req (whole path is pc=1) must still be queried once —
+    """A solitary req (whole path is pc=1) must still be queried once --
     otherwise we'd miss its main_hit entirely."""
     tree = PendingTree()
     tree.insert(1, [1, 2, 3])

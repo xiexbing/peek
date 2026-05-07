@@ -161,7 +161,7 @@ def test_window_boundary_isolation():
 
 def test_partial_window():
     print("\n=== Test 3: Partial window (timeout scenario) ===")
-    # 10 requests, window_size=8 → first window=8, partial window=2
+    # 10 requests, window_size=8 -> first window=8, partial window=2
     requests = make_requests_with_groups(n_groups=4, reqs_per_group=3)
     # That gives 12 requests interleaved
     requests = requests[:10]  # cut to get a partial last window
@@ -185,11 +185,11 @@ def test_partial_window():
 
 
 # ---------------------------------------------------------------------------
-# Test 4: No sharing → identity permutation
+# Test 4: No sharing -> identity permutation
 # ---------------------------------------------------------------------------
 
 def test_no_sharing():
-    print("\n=== Test 4: No prefix sharing → identity order ===")
+    print("\n=== Test 4: No prefix sharing -> identity order ===")
     rng = random.Random(123)
     # Each request has completely unique tokens
     requests = []

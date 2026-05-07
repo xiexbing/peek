@@ -238,9 +238,9 @@ class TestVllmOnSchedule(unittest.TestCase):
             )
             _vllm_counters.pop(id(scheduler), None)
             _vllm_engines.pop(id(scheduler), None)
-            vllm_on_schedule(scheduler)  # call 1 → runs
+            vllm_on_schedule(scheduler)  # call 1 -> runs
             reset_called[0] = False
-            vllm_on_schedule(scheduler)  # call 2 → throttled
+            vllm_on_schedule(scheduler)  # call 2 -> throttled
             assert not reset_called[0]
         finally:
             _mod._VLLM_THROTTLE_INTERVAL = old_interval
@@ -274,7 +274,7 @@ class TestDetectSharingSglang(unittest.TestCase):
 
     def test_no_sharing_short_different(self):
         # Short inputs that differ are NOT sharing (first-token match
-        # is too coarse — the new implementation correctly rejects these).
+        # is too coarse -- the new implementation correctly rejects these).
         queue = [
             SimpleNamespace(origin_input_ids=[1, 2, 3]),
             SimpleNamespace(origin_input_ids=[1, 7, 8]),
@@ -493,7 +493,7 @@ class TestVllmPeekEngine(unittest.TestCase):
 
         waiting = [r0, r1]
         engine.run(waiting)
-        # Group A has higher eviction_risk → should be scheduled first
+        # Group A has higher eviction_risk -> should be scheduled first
         assert waiting[0] is r0
 
     def test_returns_all_requests(self):
@@ -516,9 +516,9 @@ class TestVllmPeekEngine(unittest.TestCase):
 
         engine = VllmPeekEngine(pool, [0])
 
-        # Group A: 5 requests (>= BUFFER_MIN_GROUP_SIZE=4 → ready)
+        # Group A: 5 requests (>= BUFFER_MIN_GROUP_SIZE=4 -> ready)
         group_a = [self._req(["A1", "A2"]) for _ in range(5)]
-        # Group B: 2 requests (< 4 and just arrived → buffering)
+        # Group B: 2 requests (< 4 and just arrived -> buffering)
         group_b = [self._req(["B1", "B2"]) for _ in range(2)]
 
         waiting = group_b + group_a  # B first in queue

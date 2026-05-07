@@ -17,7 +17,7 @@
 completion, so the client trie drains to zero after all requests finish.
 
 Uses a mock HTTP server (no aiohttp dependency) to simulate the full
-Poisson arrival → HTTP send → response → remove() flow.
+Poisson arrival -> HTTP send -> response -> remove() flow.
 """
 
 import pytest
@@ -85,7 +85,7 @@ def run_mock_poisson_peek(requests, arrival_rate=30.0, seed=SEED):
     def dispatch_fn(req):
         nonlocal submit_count
         orig_id = req.get("id", "")
-        # Stash info for remove — prompt_index is _next_idx - 1
+        # Stash info for remove -- prompt_index is _next_idx - 1
         id_to_remove_info[orig_id] = (
             req["token_ids"],
             dispatcher_real._next_idx - 1,
@@ -117,7 +117,7 @@ def run_mock_poisson_peek(requests, arrival_rate=30.0, seed=SEED):
 
 
 class TestRemoveOnCompletion(unittest.TestCase):
-    """Verify the submit→send→complete→remove flow."""
+    """Verify the submit->send->complete->remove flow."""
 
     @classmethod
     def setUpClass(cls):
@@ -181,7 +181,7 @@ class TestTrieDrainsProgressively(unittest.TestCase):
         rng.shuffle(arrival_order)
 
         # Phase 1: submit all
-        prompt_info = {}  # orig_id → (token_ids, prompt_idx)
+        prompt_info = {}  # orig_id -> (token_ids, prompt_idx)
         for idx in arrival_order:
             req = dict(reqs[idx])
             prompt_idx = dispatcher._next_idx
@@ -289,20 +289,20 @@ class TestRankCorrectDuringDrain(unittest.TestCase):
         # A=20, B=15. A is rank 0.
         self.assertEqual(dispatcher._trie._num_prompts, 35)
 
-        # Complete 16 of A → A=4, B=15. B should overtake.
+        # Complete 16 of A -> A=4, B=15. B should overtake.
         for tids, pidx in a_info[:16]:
             dispatcher.remove(tids, pidx)
 
         self.assertEqual(dispatcher._trie._num_prompts, 19)  # 4 + 15
 
-        # Next submit to B → B=16, A=4. B must be rank 0.
+        # Next submit to B -> B=16, A=4. B must be rank 0.
         dispatched.clear()
         dispatcher.submit({"id": "b-new", "token_ids": prefix_b + [999]})
         rank_b = int(dispatched[0]["rid"].split(":")[1])
         self.assertEqual(rank_b, 0,
                          f"B(16 pending) should be rank 0 after draining A to 4, got {rank_b}")
 
-        # Next submit to A → A=5, B=16. A must be rank 1.
+        # Next submit to A -> A=5, B=16. A must be rank 1.
         dispatched.clear()
         dispatcher.submit({"id": "a-new", "token_ids": prefix_a + [999]})
         rank_a = int(dispatched[0]["rid"].split(":")[1])

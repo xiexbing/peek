@@ -485,7 +485,7 @@ def shared_system_prompts(
         for g in range(num_groups):
             sp = _deterministic_prefix(f"system-{g}", group_lengths[g])
             system_prompts.append(sp)
-            group_questions.append([])  # empty → use random tokens below
+            group_questions.append([])  # empty -> use random tokens below
 
     # Group assignment: uniform (round-robin) or Zipf
     if group_distribution == "zipf":
@@ -572,7 +572,7 @@ def few_shot_mmlu(
             for k in range(num_shots):
                 shots.extend(_deterministic_prefix(f"mmlu-{s}-shot-{k}", 60))
             shot_prefixes.append(shots[:600])
-            subject_questions.append([])  # empty → use random tokens below
+            subject_questions.append([])  # empty -> use random tokens below
 
     actual_subjects = len(shot_prefixes)
     prompts: list[PromptRequest] = []

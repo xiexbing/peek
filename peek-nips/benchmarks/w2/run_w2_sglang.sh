@@ -1,5 +1,5 @@
 #!/bin/bash
-# W3 benchmark driver — Long-document RAG (decode-dominant co-design).
+# W3 benchmark driver -- Long-document RAG (decode-dominant co-design).
 #
 # Adapted from benchmarks/w1/run_w1_sglang.sh with W2-validated additions:
 #   - Prometheus /metrics snapshot per cell (for hit-rate computation)
@@ -9,9 +9,9 @@
 #   - Fixed-decode support for decode-length sensitivity cells D0-D4
 #
 # Cells
-#   A     G=40  prefix=4096   N=500 warmup=100  KV~3×  oversub  (short-RAG ref)
-#   B     G=40  prefix=8192   N=1000 warmup=100  KV~7×  oversub  PRIMARY (mainstream RAG)
-#   C     G=40  prefix=16384  N=500 warmup=100  KV~14× oversub  (long-doc RAG)
+#   A     G=40  prefix=4096   N=500 warmup=100  KV~3x  oversub  (short-RAG ref)
+#   B     G=40  prefix=8192   N=1000 warmup=100  KV~7x  oversub  PRIMARY (mainstream RAG)
+#   C     G=40  prefix=16384  N=500 warmup=100  KV~14x oversub  (long-doc RAG)
 #   D0    G=40  prefix=8192   fixed_decode=128  decode-length sensitivity
 #   D1    G=40  prefix=8192   fixed_decode=512
 #   D2    G=40  prefix=8192   fixed_decode=1024
@@ -265,7 +265,7 @@ run_one() {
 }
 
 # ------------------------------ main loop ---------------------------------
-# Policy-major loop: one server per policy, all (seed × cell × rate) benches
+# Policy-major loop: one server per policy, all (seed x cell x rate) benches
 # of that policy run back-to-back with /flush_cache between.
 
 declare -A policy_plan
@@ -325,7 +325,7 @@ for policy in "${policy_order[@]}"; do
     if [[ "$server_up" == 0 || "$FULL_RESTART" == "1" ]]; then
       slog="$slog_base"
       if ! launch_server "$policy" "$slog"; then
-        echo "[w2]   LAUNCH FAILED for $policy — skipping remaining benches"
+        echo "[w2]   LAUNCH FAILED for $policy -- skipping remaining benches"
         server_up=0
         break
       fi
@@ -333,7 +333,7 @@ for policy in "${policy_order[@]}"; do
     fi
 
     if ! run_one "$cell" "$rate_label" "$policy" "$seed" "$out"; then
-      echo "[w2]   BENCH FAILED — restarting server"
+      echo "[w2]   BENCH FAILED -- restarting server"
       kill_server
       server_up=0
     fi

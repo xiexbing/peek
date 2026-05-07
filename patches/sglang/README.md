@@ -6,7 +6,7 @@ this patch is safe and behavior is identical to upstream sglang otherwise).
 
 | env var | what it does | used by |
 |---|---|---|
-| `PEEK_AGENT_INTER_TURN_MEDIAN_MS` (default 0) | LogNormal-distributed sleep between turns within a Mooncake session — models tool-chain / RAG inter-turn delay | W2 |
+| `PEEK_AGENT_INTER_TURN_MEDIAN_MS` (default 0) | LogNormal-distributed sleep between turns within a Mooncake session -- models tool-chain / RAG inter-turn delay | W2 |
 | `PEEK_AGENT_INTER_TURN_SIGMA` (default 0.5) | LogNormal sigma for the gap above | W2 |
 | `PEEK_SHARED_SYSTEM_PROMPT_PATH` (default empty) | path to a text file whose contents are prepended as a `system` message to every session | W2 |
 
@@ -35,7 +35,7 @@ patch -R -p0 "$SGLANG_BENCH_SERVING" < benchmarks/w2/sglang_patches/bench_servin
 ## Why a patch and not a wrapper?
 
 `get_mooncake_request_over_time` is an `async generator` invoked deep inside
-`sglang.bench_serving.main()` — replacing it cleanly via monkey-patch from
+`sglang.bench_serving.main()` -- replacing it cleanly via monkey-patch from
 outside requires duplicating sglang's argument-parsing surface and is fragile
 across sglang versions. A vendored patch is small (~30 lines), explicit, and
 easy to audit.

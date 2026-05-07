@@ -1,4 +1,4 @@
-# PEEK — example commands
+# PEEK -- example commands
 
 Copy-paste recipes for each combination of mode (online / offline) and
 engine (sglang / vllm). Pick the row, run the install once, then the
@@ -143,7 +143,7 @@ python -m sglang.launch_server \
   --host 127.0.0.1 --port 30000
 ```
 
-**Send a request** — same `curl` as in example 1.
+**Send a request** -- same `curl` as in example 1.
 
 **Optional client-side reorder** (instead of server-side, e.g. when you
 can't or don't want to patch the server). Set the offline env-var and
@@ -190,13 +190,13 @@ python -m vllm.entrypoints.openai.api_server \
 vLLM has no `--radix-eviction-policy` CLI knob, so the queue-aware
 eviction is gated by `PEEK_OFFLINE_SERVER_REORDER=1` instead.
 
-**Send a request** — same `curl` as in example 2.
+**Send a request** -- same `curl` as in example 2.
 
 ---
 
 ## Reverting
 
-**Online:** unset all `PEEK_ONLINE_*` env vars and relaunch — the patch
+**Online:** unset all `PEEK_ONLINE_*` env vars and relaunch -- the patch
 hook becomes a no-op when no flag is set.
 
 **Offline:** revert the source-level patches:

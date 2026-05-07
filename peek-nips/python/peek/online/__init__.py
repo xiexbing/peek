@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PEEK online mode — streaming-arrival serving path.
+"""PEEK online mode -- streaming-arrival serving path.
 
 Rust-backed pending radix tree + Cluster-LPM (cLPM) scheduler +
 queue-aware eviction, installed into SGLang or vLLM by importing the

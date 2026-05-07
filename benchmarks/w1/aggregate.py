@@ -2,10 +2,10 @@
 """W1 results aggregator.
 
 Walks results/seed_<S>/cell_<X>/rate_<R>/<policy>.json and produces:
-  - summary.csv     : one row per completed run (seed × cell × rate × policy)
-  - aggregated.csv  : median / mean / stdev across seeds per (cell × rate × policy)
+  - summary.csv     : one row per completed run (seed x cell x rate x policy)
+  - aggregated.csv  : median / mean / stdev across seeds per (cell x rate x policy)
   - delta.csv       : relative improvement (%) of each non-baseline policy vs lpm_lru
-                     per (cell × rate), using median across seeds
+                     per (cell x rate), using median across seeds
 """
 
 from __future__ import annotations
@@ -169,9 +169,9 @@ def main() -> None:
         w.writeheader()
         w.writerows(delta_rows)
 
-    print(f"wrote {len(rows)} raw rows       → {out_raw}")
-    print(f"wrote {len(agg_rows)} agg rows   → {out_agg}")
-    print(f"wrote {len(delta_rows)} deltas   → {out_delta}")
+    print(f"wrote {len(rows)} raw rows       -> {out_raw}")
+    print(f"wrote {len(agg_rows)} agg rows   -> {out_agg}")
+    print(f"wrote {len(delta_rows)} deltas   -> {out_delta}")
 
 
 if __name__ == "__main__":

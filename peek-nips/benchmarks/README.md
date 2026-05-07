@@ -1,4 +1,4 @@
-# PEEK reproduction kit (W1–W5)
+# PEEK reproduction kit (W1-W5)
 
 Per-workload drivers for the experiments reported in PEEK-Online §4
 (NeurIPS 2026). Each `wN/` directory has its own README with cell
@@ -6,11 +6,11 @@ parameters, expected runtimes, and worked examples.
 
 | W   | §  | Workload                              | Model                                   | Hardware           |
 | --- | -- | ------------------------------------- | --------------------------------------- | ------------------ |
-| W1  | 4.1 | Shared-prompt chat (LooGLE)          | `Qwen/Qwen2.5-32B-Instruct`             | 1×H100 80GB        |
-| W2  | 4.2 | Long-document RAG (LooGLE)           | `Qwen/Qwen2.5-32B-Instruct`             | 1×H100 80GB        |
-| W3  | 4.3 | Multi-GPU 70B (DP=1, DP=2)           | `meta-llama/Llama-3.1-70B-Instruct` TP=2 | 2× / 4×H100 80GB   |
-| W4  | 4.4 | Agentic Mooncake conversation_trace  | `mistralai/Mistral-Small-24B-Instruct-2501` | 1×H100 80GB    |
-| W5  | 4.4 | Singleton chat (LMSYS-Chat-1M)       | `google/gemma-2-27b-it`                 | 1×H100 80GB        |
+| W1  | 4.1 | Shared-prompt chat (LooGLE)          | `Qwen/Qwen2.5-32B-Instruct`             | 1xH100 80GB        |
+| W2  | 4.2 | Long-document RAG (LooGLE)           | `Qwen/Qwen2.5-32B-Instruct`             | 1xH100 80GB        |
+| W3  | 4.3 | Multi-GPU 70B (DP=1, DP=2)           | `meta-llama/Llama-3.1-70B-Instruct` TP=2 | 2x / 4xH100 80GB   |
+| W4  | 4.4 | Agentic Mooncake conversation_trace  | `mistralai/Mistral-Small-24B-Instruct-2501` | 1xH100 80GB    |
+| W5  | 4.4 | Singleton chat (LMSYS-Chat-1M)       | `google/gemma-2-27b-it`                 | 1xH100 80GB        |
 
 ## Policy labels
 
@@ -47,7 +47,7 @@ The filesystem-safe IDs map to `PEEK_ONLINE_*` flags as follows:
 | `clpm_gm_pe`     | `PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 PEEK_ONLINE_CLPM_GROUP_MAJOR=1 PEEK_ONLINE_EVICTION=1 PEEK_ONLINE_EVICTION_MODE=cluster` |
 | `clpm_gm_dl_pe`  | + `PEEK_ONLINE_CLPM_DYNAMIC_LANE=1`                                                                                          |
 
-The drivers do this mapping automatically — you set `POLICIES=…` and they
+The drivers do this mapping automatically -- you set `POLICIES=...` and they
 emit the right env vars per policy.
 
 ## Bench clients
@@ -64,12 +64,12 @@ Shared by multiple workloads, parked under `scripts/bench/`:
 ## Quick start
 
 ```bash
-# 1. Build PEEK and install the engine you want to test (sglang OR vllm —
+# 1. Build PEEK and install the engine you want to test (sglang OR vllm --
 #    incompatible torch pins, see top-level README).
 bash scripts/install_peek_sglang.sh
 # (or scripts/install_peek_vllm.sh)
 
-# 2. Run a smoke test — W1 cell C, primary cell, one seed, two policies.
+# 2. Run a smoke test -- W1 cell C, primary cell, one seed, two policies.
 CELLS=C SEEDS=42 RATES=heavy \
 POLICIES_FULL="lpm_lru clpm_gm_dl_pe" \
 bash benchmarks/w1/run_w1_sglang.sh
@@ -97,7 +97,7 @@ python benchmarks/w1/aggregate.py
 ## Seeds, warmup, statistical reporting
 
 All paper numbers are **means across the 3 seeds (42, 142, 242)** after
-the first ~10–20% of requests are warmup-excluded. Per-seed JSON is in
+the first ~10-20% of requests are warmup-excluded. Per-seed JSON is in
 `<W>/results/seed_<N>/cell_<X>/rate_<Y>/<policy>.json`. The workload-
 specific `aggregate.py` consolidates seeds and emits CSV summaries +
 per-policy delta vs the engine's stock baseline.
@@ -114,5 +114,5 @@ per-policy delta vs the engine's stock baseline.
   table is in `w2/README.md`; tweak as needed when invoking
   `run_w1_vllm.sh`.
 - Calibration / probe scripts (`probe_*.sh`, `calibrate.sh`) used during
-  paper development — these are noise for reviewers and were dropped.
+  paper development -- these are noise for reviewers and were dropped.
   The cell rates baked into the run scripts are the calibrated values.

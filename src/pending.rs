@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Pending-request manager: wraps `Tree` with an rid → tokens map so callers
+//! Pending-request manager: wraps `Tree` with an rid -> tokens map so callers
 //! can `remove(rid)` without re-supplying the token sequence, and exposes the
 //! whole thing as a PyO3 class.
 
@@ -27,7 +27,7 @@ use crate::tree::{NodeId, Rid, Token, Tree, ROOT};
 
 pub struct PendingTree {
     tree: Tree,
-    /// rid → token path. Kept so remove(rid) doesn't need tokens from the caller.
+    /// rid -> token path. Kept so remove(rid) doesn't need tokens from the caller.
     pub(crate) paths: FxHashMap<Rid, Vec<Token>>,
 }
 
@@ -48,7 +48,7 @@ impl PendingTree {
     }
 
     /// Insert a request. Returns true if newly inserted, false if rid was
-    /// already present (no-op — caller should ensure rids are unique).
+    /// already present (no-op -- caller should ensure rids are unique).
     pub fn insert(&mut self, rid: Rid, tokens: Vec<Token>) -> bool {
         if self.paths.contains_key(&rid) {
             return false;
@@ -173,7 +173,7 @@ impl PyPendingTree {
     }
 
     /// Bulk remove. Returns the number of rids that were present and removed.
-    /// Unlike `remove`, missing rids are silently skipped — matches `discard`
+    /// Unlike `remove`, missing rids are silently skipped -- matches `discard`
     /// semantics for batch convenience.
     fn remove_many(&mut self, rids: Vec<u64>) -> usize {
         let mut n = 0;
@@ -212,7 +212,7 @@ impl PyPendingTree {
     /// Fast O(#root-children) check: does any pending rid share even its
     /// first token with another pending rid? When False, peek's dualwalk /
     /// cluster_info cannot produce any scheduling signal beyond what stock
-    /// LPM would — callers should bypass peek in that case.
+    /// LPM would -- callers should bypass peek in that case.
     fn has_sharing(&self) -> bool {
         self.inner.tree.has_sharing()
     }
@@ -230,10 +230,10 @@ impl PyPendingTree {
     }
 
     /// Cluster-LPM per-request score:
-    ///   score(rid) = Σ over ancestor chain of (pending_count × edge_length)
+    ///   score(rid) = Σ over ancestor chain of (pending_count x edge_length)
     /// where the chain runs from rid's terminator node up to root.
     ///
-    /// Captures total pending-token-edges along rid's path — a dense,
+    /// Captures total pending-token-edges along rid's path -- a dense,
     /// heavily-shared subtree yields high score; a lone singleton yields
     /// near zero. Single O(tree_size) DFS, O(1) per terminator annotation.
     fn compute_req_scores(&self) -> HashMap<u64, i64> {
@@ -258,7 +258,7 @@ impl PyPendingTree {
 
     /// Cluster info for `rid`: `(cluster_node_id, cluster_depth, cluster_size)`.
     /// Returns None if `rid` is absent or singleton. `cluster_node_id` is an
-    /// opaque int stable within a mutation-free sequence — rids whose returned
+    /// opaque int stable within a mutation-free sequence -- rids whose returned
     /// `cluster_node_id` match are in the same cluster.
     fn cluster_info(&self, rid: u64) -> Option<(u32, usize, u32)> {
         self.inner.cluster_info(rid)
@@ -294,7 +294,7 @@ impl PyPendingTree {
     /// Path-specific demand: unlike `pending_demand`, a shared ancestor with
     /// N fan-out sessions gets count 0 here (none terminate at the ancestor).
     /// Used for demand-aware eviction of sglang cache *leaves* so shared
-    /// prefixes aren't amplified N× in the protection signal.
+    /// prefixes aren't amplified Nx in the protection signal.
     fn terminators_at(&self, path: Vec<u32>) -> u32 {
         self.inner.tree.terminators_at(&path)
     }
@@ -355,15 +355,15 @@ impl PyPendingTree {
     /// Compute main-cache match length for every pending rid in a single
     /// dual-walk. `cache_match_fn` is called ONCE PER EDGE in peek's tree
     /// (not per rid). When the cache diverges within an edge, every rid in
-    /// that subtree shares the same main_hit — no further cache queries for
+    /// that subtree shares the same main_hit -- no further cache queries for
     /// that branch. Returns `{rid: main_hit}` for every pending rid.
     ///
     /// `cache_match_fn(tokens: list[int]) -> int` must return the length of
     /// the longest prefix of `tokens` present in the external cache.
     ///
     /// `min_pending_count` (default 1) controls whether to descend into
-    /// subtrees of low-sharing reqs. Set to 2 to skip singleton subtrees —
-    /// where a req's tail diverges from all other pending reqs — on the
+    /// subtrees of low-sharing reqs. Set to 2 to skip singleton subtrees --
+    /// where a req's tail diverges from all other pending reqs -- on the
     /// assumption that exact per-req tails are rarely in the KV cache. This
     /// collapses typical per-pass cache calls from O(N) to O(#clusters) at
     /// the cost of missing tail-cache hits (uncommon in LLM traffic).
@@ -374,7 +374,7 @@ impl PyPendingTree {
         cache_match_fn: Bound<'_, PyAny>,
         min_pending_count: u32,
     ) -> PyResult<HashMap<u64, usize>> {
-        // Pre-size for the total pending rid count — every terminator gets
+        // Pre-size for the total pending rid count -- every terminator gets
         // exactly one entry in the returned dict.
         let mut result: HashMap<u64, usize> =
             HashMap::with_capacity(self.inner.paths.len());
@@ -401,12 +401,12 @@ impl PyPendingTree {
 ///   (arrival_bucket, section_id, -main_hit, -req_score, -cluster_size, arrival_ns)
 ///
 /// Semantics:
-///   * arrival_bucket — primary (FCFS across windows; no starvation beyond W)
-///   * section_id     — 0=warm, 1=cold pioneer, 2=cold sibling (deprio tail)
-///   * -main_hit      — LPM primary within section
-///   * -req_score     — cumulative (pending_count × edge_length) along ancestors
-///   * -cluster_size  — shallow subtree with many reqs wins
-///   * arrival_ns     — FCFS final tiebreak
+///   * arrival_bucket -- primary (FCFS across windows; no starvation beyond W)
+///   * section_id     -- 0=warm, 1=cold pioneer, 2=cold sibling (deprio tail)
+///   * -main_hit      -- LPM primary within section
+///   * -req_score     -- cumulative (pending_count x edge_length) along ancestors
+///   * -cluster_size  -- shallow subtree with many reqs wins
+///   * arrival_ns     -- FCFS final tiebreak
 ///
 /// Returns indices in admission order. Stable: tuple equality preserves input order.
 #[pyfunction]
@@ -428,7 +428,7 @@ pub fn peek_clpm_sort_order(
 /// Ties preserve original queue position (stable sort).
 ///
 /// Byte-identical to `sorted(queue, key=lambda r: float('inf') if depr else
-/// -main_hit)` — note that Python treats ALL deprioritized reqs as having
+/// -main_hit)` -- note that Python treats ALL deprioritized reqs as having
 /// the same key (+inf), so stable sort keeps them in arrival order. Within
 /// non-deprio, main_hit breaks order; ties preserve arrival order.
 #[pyfunction]
@@ -442,8 +442,8 @@ pub fn lpm_sort_order(keys: Vec<(i64, bool)>) -> Vec<usize> {
             // Non-deprio before deprio.
             (false, true) => Ordering::Less,
             (true, false) => Ordering::Greater,
-            // Both deprio: treat as equal (+inf key in Python) → stable
-            // sort preserves arrival order. Crucial for LPM parity.
+            // Both deprio: treat as equal (+inf key in Python) -> stable
+            // sort preserves arrival order. Needed for LPM parity.
             (true, true) => Ordering::Equal,
             // Both non-deprio: larger main_hit first.
             (false, false) => (-mh_a).cmp(&(-mh_b)),

@@ -19,7 +19,7 @@ Qwen 2.5 32B scenario: 100 groups, 1000 requests, Zipf(1.5),
 2048-token system prompts, 128-token questions.
 
 Key invariant: the PeekDispatcher sees requests ONE AT A TIME as they
-arrive — it never pre-sees the full 1000-request batch.  We verify that
+arrive -- it never pre-sees the full 1000-request batch.  We verify that
 the incremental trie produces correct grouping and ranking at every
 point during the arrival stream.
 """
@@ -46,7 +46,7 @@ ZIPF_ALPHA = 1.5
 SYSTEM_PROMPT_LEN = 2048
 QUESTION_LEN = 128
 TRIE_MAX_DEPTH = 128       # PeekDispatcher default
-POISSON_RATE = 30.0         # req/s — only affects inter-arrival timing
+POISSON_RATE = 30.0         # req/s -- only affects inter-arrival timing
 SEED = 42
 
 
@@ -99,7 +99,7 @@ def _adjacency_score(labels: list) -> float:
 
 
 # ===================================================================
-# Test 1: Incremental trie correctness — one request at a time
+# Test 1: Incremental trie correctness -- one request at a time
 # ===================================================================
 
 class TestIncrementalTrieOnline(unittest.TestCase):
@@ -163,7 +163,7 @@ class TestIncrementalTrieOnline(unittest.TestCase):
 
 
 # ===================================================================
-# Test 2: PeekDispatcher online — never pre-sees the batch
+# Test 2: PeekDispatcher online -- never pre-sees the batch
 # ===================================================================
 
 class TestPeekDispatcherOnline(unittest.TestCase):
@@ -249,7 +249,7 @@ class TestPeekDispatcherOnline(unittest.TestCase):
 
 
 # ===================================================================
-# Test 3: Online incremental vs batch — must produce same grouping
+# Test 3: Online incremental vs batch -- must produce same grouping
 # ===================================================================
 
 class TestOnlineVsBatch(unittest.TestCase):
@@ -335,7 +335,7 @@ class TestOnlineVsBatch(unittest.TestCase):
 
 
 # ===================================================================
-# Test 4: Online dispatcher vs batch reorder — grouping quality
+# Test 4: Online dispatcher vs batch reorder -- grouping quality
 # ===================================================================
 
 class TestOnlineDispatcherVsBatchReorder(unittest.TestCase):
@@ -403,12 +403,12 @@ class TestOnlineDispatcherVsBatchReorder(unittest.TestCase):
 
 
 # ===================================================================
-# Test 5: Poisson arrival timing — ranks evolve correctly
+# Test 5: Poisson arrival timing -- ranks evolve correctly
 # ===================================================================
 
 class TestRankEvolution(unittest.TestCase):
     """Verify that group ranks evolve correctly as requests arrive
-    under Poisson timing — the hottest group always has rank 0."""
+    under Poisson timing -- the hottest group always has rank 0."""
 
     @classmethod
     def setUpClass(cls):

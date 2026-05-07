@@ -19,7 +19,7 @@ Qwen 2.5 32B: 100 groups, 1000 requests.
 
 PeekEngine.run() step 9 calls dispatcher.remove() for front-of-queue
 requests that PrefillAdder will admit.  This happens synchronously
-in the server's scheduling thread — zero delay.
+in the server's scheduling thread -- zero delay.
 """
 
 import pytest
@@ -212,7 +212,7 @@ class TestDirectRemoveAtAdmission(unittest.TestCase):
         self.assertEqual(self.result["total_completed"], N_REQUESTS)
 
     def test_all_removed_directly(self):
-        """Every admission triggers a direct remove — no other path needed."""
+        """Every admission triggers a direct remove -- no other path needed."""
         self.assertEqual(self.result["total_direct_removes"], N_REQUESTS)
 
     def test_removes_equal_admissions_per_cycle(self):
@@ -237,7 +237,7 @@ class TestDirectRemoveAtAdmission(unittest.TestCase):
         self.assertEqual(final["trie_count"], 0)
 
     def test_zero_delay(self):
-        """Direct remove happens in the same cycle as admission —
+        """Direct remove happens in the same cycle as admission --
         no cycle gap between admission and trie update."""
         for s in self.snapshots:
             if s["admitted"] > 0:

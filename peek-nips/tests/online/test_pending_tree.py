@@ -98,7 +98,7 @@ def test_churn_keeps_tree_consistent():
         t.insert(rid, tokens)
     assert len(t) == 5
 
-    # rid 1's longest share with others: rid 5 extends [1,2,3,4,5] → shares all 5.
+    # rid 1's longest share with others: rid 5 extends [1,2,3,4,5] -> shares all 5.
     assert t.longest_shared_prefix(1) == 5
     # rid 4 shares nothing.
     assert t.longest_shared_prefix(4) == 0

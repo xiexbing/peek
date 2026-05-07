@@ -75,9 +75,9 @@ class QueueAwareStrategy(EvictionStrategy):
 class LRFUStrategy(EvictionStrategy):
     """LRFU: combines frequency (hit_count) and recency (last_access_time).
 
-    Score = hit_count × decay^age.  Popular prefixes keep high scores
+    Score = hit_count x decay^age.  Popular prefixes keep high scores
     even during short idle gaps; stale prefixes decay naturally.
-    O(1) per node — reads two fields already on TreeNode.
+    O(1) per node -- reads two fields already on TreeNode.
     """
 
     def __init__(self, decay: float = 0.995) -> None:

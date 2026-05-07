@@ -30,7 +30,7 @@ from peek.offline.trie import PrefixTrie
 
 
 # ---------------------------------------------------------------------------
-# Workload — Qwen 2.5 32B, 100 groups, 1000 requests, Zipf 1.5
+# Workload -- Qwen 2.5 32B, 100 groups, 1000 requests, Zipf 1.5
 # ---------------------------------------------------------------------------
 
 NUM_GROUPS = 100
@@ -71,7 +71,7 @@ def _poisson_order(n, seed=SEED):
 
 
 # ===================================================================
-# Test: bare PrefixTrie — build, add, remove
+# Test: bare PrefixTrie -- build, add, remove
 # ===================================================================
 
 class TestTrieBuildAddRemove(unittest.TestCase):
@@ -129,7 +129,7 @@ class TestTrieBuildAddRemove(unittest.TestCase):
                 seen_complete.add(prev)
                 self.assertNotIn(
                     lbl, seen_complete,
-                    f"Group {lbl} reappears after being fully traversed — "
+                    f"Group {lbl} reappears after being fully traversed -- "
                     f"DFS interleaving detected",
                 )
                 prev = lbl
@@ -187,7 +187,7 @@ class TestTrieBuildAddRemove(unittest.TestCase):
 
         # Prompt count
         self.assertEqual(trie._num_prompts, count_before + 1)
-        # Group count unchanged — same prefix key
+        # Group count unchanged -- same prefix key
         self.assertEqual(len(trie.dfs_group_keys()), groups_before)
         # DFS includes new index
         dfs = trie.dfs_order(count_aware=True)
@@ -359,7 +359,7 @@ class TestTrieBuildAddRemove(unittest.TestCase):
 
 
 # ===================================================================
-# Test: PeekDispatcher — add and remove update tags correctly
+# Test: PeekDispatcher -- add and remove update tags correctly
 # ===================================================================
 
 class TestDispatcherAddRemove(unittest.TestCase):
@@ -377,7 +377,7 @@ class TestDispatcherAddRemove(unittest.TestCase):
         dispatcher = PeekDispatcher(
             send_fn=lambda r: dispatched.append(dict(r)),
         )
-        # Track original_index → dispatcher prompt_index
+        # Track original_index -> dispatcher prompt_index
         self._orig_to_prompt = {}
         for idx in self.arrival_order:
             prompt_idx = dispatcher._next_idx
@@ -441,7 +441,7 @@ class TestDispatcherAddRemove(unittest.TestCase):
         group_a, count_a = top2[0]  # largest
         group_b, count_b = top2[1]  # second largest
 
-        # Collect original indices for group A → dispatcher prompt indices
+        # Collect original indices for group A -> dispatcher prompt indices
         group_a_orig_indices = [idx for idx in self.arrival_order if self.labels[idx] == group_a]
 
         # Remove enough from A so that B has more pending
@@ -493,7 +493,7 @@ class TestDispatcherAddRemove(unittest.TestCase):
         self.assertIsNotNone(small_group, "Need a group with 3-10 requests")
         small_count = self.group_counts[small_group]
 
-        # Collect its original indices → dispatcher prompt indices
+        # Collect its original indices -> dispatcher prompt indices
         small_orig_indices = [idx for idx in self.arrival_order if self.labels[idx] == small_group]
         self.assertEqual(len(small_orig_indices), small_count)
 

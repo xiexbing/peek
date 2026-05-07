@@ -1,18 +1,18 @@
 #!/bin/bash
-# W4 — Agentic LLM serving runner (paper §4.4).
+# W4 -- Agentic LLM serving runner (paper §4.4).
 #
 # Workload: Mooncake conversation_trace, num_rounds=4 burst with tight
-# inter-turn gap — models tool-chain bursts as in Cursor / Copilot /
+# inter-turn gap -- models tool-chain bursts as in Cursor / Copilot /
 # Claude Code / RAG pipelines.
 #
 # Policies (paper Table 2 labels):
-#   lpm_lru        SGLang LPM + LRU                                 — baseline
-#   clpm_gm_dl     cLPM + GM + DL + LRU                             — scheduling-only
-#   clpm_gm_dl_pe  cLPM + GM + DL + queue-aware (cluster) eviction  — full PEEK
+#   lpm_lru        SGLang LPM + LRU                                 -- baseline
+#   clpm_gm_dl     cLPM + GM + DL + LRU                             -- scheduling-only
+#   clpm_gm_dl_pe  cLPM + GM + DL + queue-aware (cluster) eviction  -- full PEEK
 #
 # Cells (calibrated against lpm_lru):
-#   moderate  num_prompts=30   → mean queue ~30–50,  peak ~80
-#   heavy     num_prompts=120  → mean queue ~80–150, peak ~200
+#   moderate  num_prompts=30   -> mean queue ~30-50,  peak ~80
+#   heavy     num_prompts=120  -> mean queue ~80-150, peak ~200
 #
 # Usage:
 #   bash benchmarks/w4/run_w4_sglang.sh                              # full matrix
@@ -204,7 +204,7 @@ for policy in $POLICIES; do
 
   slog="$RESULTS_DIR/_server_${policy}.log"
   if ! launch_server "$policy" "$slog"; then
-    echo "[w4]   LAUNCH FAILED for $policy — skipping all $policy runs"
+    echo "[w4]   LAUNCH FAILED for $policy -- skipping all $policy runs"
     continue
   fi
 

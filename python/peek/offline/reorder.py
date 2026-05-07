@@ -46,7 +46,7 @@ class PeekConfig:
         return True
 
     def schedule_policy_for(self, pending_queue_len: int) -> str:
-        """Return the server scheduling policy. FCFS — PeekEngine controls order."""
+        """Return the server scheduling policy. FCFS -- PeekEngine controls order."""
         return "fcfs"
 
 
@@ -83,14 +83,14 @@ def reorder_for_prefix_sharing(
 
     Skips reorder (returns identity permutation) when:
 
-    1. Prefix sharing is too shallow — coverage of prompts sharing at least
+    1. Prefix sharing is too shallow -- coverage of prompts sharing at least
        *min_sharing_depth* tokens is below *min_coverage*.
-    2. Average sharing depth too low — when the trie-measured average sharing
+    2. Average sharing depth too low -- when the trie-measured average sharing
        depth is below *min_avg_sharing_depth* tokens (default 64), the
        shared prefix is too short for reorder grouping to outweigh the
        disruption to natural ordering (e.g. code completion with ~40-token
        template headers).
-    3. Too many exact full-sequence duplicates — DFS grouping clusters
+    3. Too many exact full-sequence duplicates -- DFS grouping clusters
        identical copies together, but under high concurrency they all arrive
        before the first completes and populates the KV cache.  Natural
        round-robin order spaces duplicates apart, letting each copy reuse
@@ -124,34 +124,34 @@ class PeekDispatcher:
     Maintains a persistent :class:`PrefixTrie` that tracks all pending
     (waiting-to-be-scheduled) requests.  The trie provides two things:
 
-    **DFS locality** — groups sharing a prefix path are adjacent in the
+    **DFS locality** -- groups sharing a prefix path are adjacent in the
     DFS traversal.  This matters for hierarchical prefixes (RAG, multi-
     turn) where group A ``[1,2,3,4,...]`` and group B ``[1,2,3,5,...]``
     share path ``[1,2,3]`` and should be scheduled back-to-back so the
     server's radix cache walk is efficient.
 
-    **Count-aware priority** — within the DFS ordering, groups are
+    **Count-aware priority** -- within the DFS ordering, groups are
     sorted by pending request count (largest first).  This ensures the
     server processes high-demand groups before low-demand ones.
 
     On each :meth:`submit`:
 
-      1. Insert into the trie — O(max_depth).
+      1. Insert into the trie -- O(max_depth).
       2. If trie structure changed (new group or group removed):
-         recompute DFS group order — O(trie_nodes).
-      3. Re-sort the DFS order by pending count — O(G log G).
+         recompute DFS group order -- O(trie_nodes).
+      3. Re-sort the DFS order by pending count -- O(G log G).
       4. Tag request with ``peek:<rank>:<group_hash>:<rid>``.
       5. Send immediately via *send_fn*.
       6. Push pending counts to CacheStateStore.
 
     On :meth:`remove` (called by PeekEngine at admission, zero delay):
 
-      1. Remove from trie — O(max_depth).
+      1. Remove from trie -- O(max_depth).
       2. Decrement pending count.  If group empties, mark structure dirty.
       3. Push pending counts to CacheStateStore.
 
     Cost per request: O(max_depth + G log G) typical.  The DFS recompute
-    (O(trie_nodes)) runs only when the group set changes — G times over
+    (O(trie_nodes)) runs only when the group set changes -- G times over
     the entire workload.
 
     Usage::
@@ -174,14 +174,14 @@ class PeekDispatcher:
         self._next_idx: int = 0
         # Pending count per group key
         self._group_count: dict[tuple[int, ...], int] = {}
-        # group_key → pre-computed hash
+        # group_key -> pre-computed hash
         self._group_hashes: dict[tuple[int, ...], int] = {}
         # DFS-ordered group keys (recomputed on structure change)
         self._dfs_keys: list[tuple[int, ...]] = []
         self._structure_dirty: bool = False
         # Shared store for client↔server state exchange
         self._state_store = self._get_state_store()
-        # request_id → (token_ids, prompt_index) for server-initiated remove
+        # request_id -> (token_ids, prompt_index) for server-initiated remove
         self._rid_to_remove_info: dict[str, tuple[list[int], int]] = {}
 
     @staticmethod
@@ -217,7 +217,7 @@ class PeekDispatcher:
         token_ids = self._get_token_ids(request)
         key = tuple(token_ids[: self._max_depth])
 
-        # 1. Trie insert — O(max_depth)
+        # 1. Trie insert -- O(max_depth)
         self._trie.insert(token_ids, idx)
 
         # 2. Update pending count; detect structure change
@@ -226,11 +226,11 @@ class PeekDispatcher:
         if key not in self._group_hashes:
             self._group_hashes[key] = hash(key) & 0xFFFFFFFF
 
-        # 3. Recompute DFS order on structure change — O(trie_nodes)
+        # 3. Recompute DFS order on structure change -- O(trie_nodes)
         if is_new_group or self._structure_dirty:
             self._recompute_dfs_keys()
 
-        # 4. Sort DFS keys by pending count — O(G log G)
+        # 4. Sort DFS keys by pending count -- O(G log G)
         #    DFS locality is the primary order; count breaks ties among
         #    groups at the same trie depth.  We sort descending by count
         #    but the DFS sequence determines which groups are "adjacent"
@@ -266,7 +266,7 @@ class PeekDispatcher:
             if self._group_count[key] <= 0:
                 del self._group_count[key]
                 self._group_hashes.pop(key, None)
-                # Group gone — trie structure changed
+                # Group gone -- trie structure changed
                 self._structure_dirty = True
 
         self._push_pending_to_server()

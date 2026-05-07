@@ -23,7 +23,7 @@
 # Env knobs:
 #   PY                Python interpreter (default: python3 from PATH)
 #   CARGO_HOME        Where rustup installs (default: $HOME/.cargo)
-#   SKIP_RUST=1       Don't try to install Rust — assume cargo is on PATH
+#   SKIP_RUST=1       Don't try to install Rust -- assume cargo is on PATH
 #   SKIP_BUILD=1      Skip the maturin build (already-built peek)
 #   SKIP_VLLM=1       Don't install vllm (already installed)
 #   SKIP_BENCH=1      Don't install bench deps
@@ -88,7 +88,7 @@ fi
 # ---------- 4. vllm engine ------------------------------------------------
 if [[ "$SKIP_VLLM" != "1" ]]; then
   if ! "$PY" -c "import vllm" 2>/dev/null; then
-    echo "[peek+vllm] installing vllm==$VLLM_VERSION (large download — be patient)"
+    echo "[peek+vllm] installing vllm==$VLLM_VERSION (large download -- be patient)"
     "$PY" -m pip install --quiet "vllm==$VLLM_VERSION"
   fi
   echo "[peek+vllm] vllm: $("$PY" -c 'import vllm; print(vllm.__version__)')"
@@ -134,7 +134,7 @@ echo "  python -m vllm.entrypoints.openai.api_server \\"
 echo "    --model <hf-id> \\"
 echo "    --enable-prefix-caching"
 echo "  # (offline patches activate automatically once installed; vllm has no"
-echo "  #  --radix-eviction-policy CLI knob — the patched BlockPool prefers"
+echo "  #  --radix-eviction-policy CLI knob -- the patched BlockPool prefers"
 echo "  #  zero-demand victims whenever queue tracking is active.)"
 echo
 echo "[peek+vllm] To run baseline (no PEEK):"

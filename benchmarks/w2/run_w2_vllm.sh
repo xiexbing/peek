@@ -2,8 +2,8 @@
 # W2 vLLM driver (paper §4.2, Table 14): long-document RAG on
 # Qwen2.5-32B-Instruct + vLLM 0.19.1.
 #
-# Cell B (4× KV pressure):
-#   G=40 documents × 8192-token prefixes
+# Cell B (4x KV pressure):
+#   G=40 documents x 8192-token prefixes
 #   N=500 requests per seed
 #   decode mix: 10:128, 25:512, 30:1024, 25:2048, 10:4096 (mean ≈1460)
 #   moderate rate=0.15 req/s, heavy rate=0.20 req/s

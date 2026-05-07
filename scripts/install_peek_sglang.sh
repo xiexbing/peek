@@ -23,7 +23,7 @@
 # Env knobs:
 #   PY                 Python interpreter (default: python3 from PATH)
 #   CARGO_HOME         Where rustup installs (default: $HOME/.cargo)
-#   SKIP_RUST=1        Don't try to install Rust — assume cargo is on PATH
+#   SKIP_RUST=1        Don't try to install Rust -- assume cargo is on PATH
 #   SKIP_BUILD=1       Skip the maturin build (already-built peek)
 #   SKIP_SGLANG=1      Don't install sglang (already installed)
 #   SKIP_BENCH=1       Don't install bench deps
@@ -104,7 +104,7 @@ fi
 # ---------- 4. sglang engine ---------------------------------------------
 if [[ "$SKIP_SGLANG" != "1" ]]; then
   if ! "$PY" -c "import sglang" 2>/dev/null; then
-    echo "[peek+sglang] installing sglang[all]==$SGLANG_VERSION (large download — be patient)"
+    echo "[peek+sglang] installing sglang[all]==$SGLANG_VERSION (large download -- be patient)"
     # uv is faster than pip for sglang's heavy dep tree; fall back to pip
     # if uv isn't available.
     if command -v uv >/dev/null 2>&1; then

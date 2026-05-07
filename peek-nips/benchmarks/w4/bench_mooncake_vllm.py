@@ -13,7 +13,7 @@ of each block in that session's prefix. To make vllm's prefix cache hit
 when two sessions share leading `hash_ids`, we map each hash_id
 deterministically to a ~512-token block of text. Concatenating those
 blocks yields a per-session prompt whose token-prefix tree mirrors the
-hash_ids tree — exactly the shape the trace encodes.
+hash_ids tree -- exactly the shape the trace encodes.
 
 This is faithful to peek's purpose (measure scheduler + eviction under
 realistic prefix sharing) but does not preserve the literal user/assistant
@@ -47,7 +47,7 @@ import aiohttp
 # ----- prompt synthesis ------------------------------------------------
 
 # Common English stopwords tokenize to ~0.88 tokens/word in Mistral/Llama
-# BPE. A 580-word random sequence ≈ 510 tokens — matches the Mooncake
+# BPE. A 580-word random sequence ≈ 510 tokens -- matches the Mooncake
 # block convention (~512 tokens/block). Seeding the RNG with the hash_id
 # makes the per-block sequence deterministic and distinct from the first
 # token, so identical hash_ids across sessions hit vllm's prefix cache and
@@ -70,7 +70,7 @@ def block_text(hash_id: int) -> str:
         return cached
     rng = random.Random(hash_id)
     # Lead with a unique 4-5 token marker so two different hash_ids never
-    # share leading tokens by chance — the marker alone separates them in
+    # share leading tokens by chance -- the marker alone separates them in
     # vllm's prefix tree.
     marker = f"block-{hash_id:08d}-start"
     body = " ".join(rng.choice(_STOPWORD_VOCAB) for _ in range(_WORDS_PER_BLOCK))
@@ -352,7 +352,7 @@ async def main_async(args: argparse.Namespace) -> int:
     if not sessions:
         print(f"[bench] no sessions in {args.dataset_path}", flush=True)
         return 1
-    # Sort by timestamp and take the first N — matches sglang's mooncake
+    # Sort by timestamp and take the first N -- matches sglang's mooncake
     # loader behavior (cluster the earliest N arrivals, instead of sampling
     # randomly across the full ~59-min trace which would bloat wall-clock
     # without changing the workload mix).
@@ -405,7 +405,7 @@ async def main_async(args: argparse.Namespace) -> int:
           f"req/s={summary['throughput']['request_per_s']:.2f}  "
           f"hit%={summary['cache']['hit_rate_pct']:.1f}  "
           f"ttft_p50={summary['ttft_ms']['p50']:.0f}ms  "
-          f"e2e_p99={summary['e2e_ms']['p99']:.0f}ms  →  {args.output}",
+          f"e2e_p99={summary['e2e_ms']['p99']:.0f}ms  ->  {args.output}",
           flush=True)
     return 0 if summary['counts']['errored'] == 0 else 2
 

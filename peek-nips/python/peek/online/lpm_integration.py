@@ -14,8 +14,8 @@
 
 """Peek's scheduling integration with sglang.
 
-Peek's scheduler is LPM-semantic at its core — longest-prefix-match against
-sglang's radix cache drives the primary sort key — augmented by two signals
+Peek's scheduler is LPM-semantic at its core -- longest-prefix-match against
+sglang's radix cache drives the primary sort key -- augmented by two signals
 that LPM alone cannot produce:
 
   1. In-batch pioneer selection. When multiple cold reqs share a prefix of
@@ -27,7 +27,7 @@ that LPM alone cannot produce:
 
   2. Pioneer ordering by cluster size. Among pioneers and singletons tied on
      main_hit, peek ranks by cluster size so the pioneer of the biggest
-     group admits first — its prefill unlocks the most downstream siblings'
+     group admits first -- its prefill unlocks the most downstream siblings'
      cached prefix. sglang has no analogue for this; LPM ties fall back to
      arrival order (FCFS). This is the key place peek beats LPM in both the
      all-cold regime (everyone tied at main_hit=0) and the mid-warm regime
@@ -35,7 +35,7 @@ that LPM alone cannot produce:
 
 This module exposes two sort entry points:
 
-* ``peek_lpm_sort_inplace`` — LPM-equivalent sort. Key (3-tuple, with
+* ``peek_lpm_sort_inplace`` -- LPM-equivalent sort. Key (3-tuple, with
   ``rank_by_cluster_size=False``):
 
       (-main_hit, is_deprioritized, rid)
@@ -45,13 +45,13 @@ This module exposes two sort entry points:
   which groups same-cluster reqs adjacently without ranking clusters by
   size.
 
-* ``peek_clpm_sort_inplace`` — Cluster-LPM (paper §3.2, Eq. 1). Lane A
+* ``peek_clpm_sort_inplace`` -- Cluster-LPM (paper §3.2, Eq. 1). Lane A
   key (5-tuple):
 
       (section, -main_hit, -req_score, -cluster_size, arrival_ns)
 
   where ``section`` ∈ {0=warm, 1=pioneer, 2=sibling} is the primary key,
-  ``req_score = Σ pending_count(v)·|edge(v)|`` along the rid's path
+  ``req_score = Σ pending_count(v).|edge(v)|`` along the rid's path
   through the pending tree, and ``cluster_size`` is the pending_count at
   the rid's deepest ≥2 ancestor. cLPM stride-interleaves Lane A with a
   fairness Lane B keyed by ``(section, arrival_ns, -main_hit)`` (paper
@@ -59,7 +59,7 @@ This module exposes two sort entry points:
 
 When the queue has no shared-prefix structure, ``req_score`` and
 ``cluster_size`` are 0 for every rid and cLPM's ordering degenerates to
-``(section, -main_hit, arrival)`` — which is paper-stock LPM with the
+``(section, -main_hit, arrival)`` -- which is paper-stock LPM with the
 section flag promoted to primary. The ``has_sharing`` guard (Rust core)
 short-circuits this path entirely on no-sharing queues (paper §3.3).
 
@@ -101,7 +101,7 @@ def compute_in_batch_deprioritize(
         queue in arrival order.
       * If this req's first `deprioritize_threshold` tokens are identical
         to a previously-seen pioneer's first `deprioritize_threshold`
-        tokens → deprioritize. Else, this req becomes a new pioneer and
+        tokens -> deprioritize. Else, this req becomes a new pioneer and
         claims that token-prefix.
 
     Semantically equivalent to sglang's aux-radix-tree "match length >=
@@ -111,7 +111,7 @@ def compute_in_batch_deprioritize(
 
     Earlier implementations used peek's `cluster_info` (deepest ≥2-pending
     ancestor) which diverged in topologies where a req's deepest cluster
-    was not yet claimed but a shallower ancestor had been — e.g., sibling
+    was not yet claimed but a shallower ancestor had been -- e.g., sibling
     of cluster X where X overlaps with cluster Y at depth < X.depth. The
     token-prefix approach avoids that trap by checking the exact threshold
     depth that LPM's aux tree checks.
@@ -157,21 +157,21 @@ def peek_sort_inplace(
 
         (-main_hit, -cluster_size, cluster_node_id, is_deprioritized, rid)
 
-      1. `-main_hit` — LPM primary. Cache-warm reqs (prefix_indices long)
+      1. `-main_hit` -- LPM primary. Cache-warm reqs (prefix_indices long)
          sort first.
-      2. `-cluster_size` — across clusters tied on main_hit, the larger
+      2. `-cluster_size` -- across clusters tied on main_hit, the larger
          cluster's reqs come first. Singletons have size=0 so they sort
          last among main_hit ties.
-      3. `cluster_node_id` — groups all members of the same cluster into a
+      3. `cluster_node_id` -- groups all members of the same cluster into a
          consecutive block in the queue. Singletons get a sentinel id so
          they sort after all real clusters (which have node ids < 2^31).
-      4. `is_deprioritized` — within a cluster block, the pioneer (flag=0)
+      4. `is_deprioritized` -- within a cluster block, the pioneer (flag=0)
          sits immediately before its siblings (flag=1). This lets the
-         scheduler admit pioneer_A, A2, A3, …, pioneer_B, B2, B3, …
+         scheduler admit pioneer_A, A2, A3, ..., pioneer_B, B2, B3, ...
          rather than "all pioneers, then all siblings."
-      5. `rid` — stable final tiebreak.
+      5. `rid` -- stable final tiebreak.
 
-    Setting `rank_by_cluster_size=False` drops keys 2–4 and reproduces
+    Setting `rank_by_cluster_size=False` drops keys 2-4 and reproduces
     sglang's vanilla LPM order (for A/B diagnostic runs).
 
     Returns the deprioritize set for validation/debugging.
@@ -199,7 +199,7 @@ def peek_sort_inplace(
     # rank-by-cluster-size path) AND the LPM-byte-exact in-batch deprio set.
     # The deprio check uses tokens[:deprioritize_threshold] as the pioneer
     # claim key (matches sglang's aux-radix-tree "match >= threshold" check
-    # semantically — see compute_in_batch_deprioritize docstring).
+    # semantically -- see compute_in_batch_deprioritize docstring).
     check_disabled = check_threshold < 0 or deprioritize_threshold < 0
     for r in waiting_queue:
         if not peek_lpm_sort:
@@ -227,14 +227,14 @@ def peek_sort_inplace(
     # Pass 2: stable sort using the 4-tuple key.
     #   (-main_hit, cluster_node_id, is_deprioritized, rid)
     # cluster_node_id groups same-cluster members adjacently (DFS-like) but
-    # does NOT rank clusters by size — so small clusters can't be perpetually
+    # does NOT rank clusters by size -- so small clusters can't be perpetually
     # starved by new big-cluster arrivals cutting in front of them. Inter-
     # cluster order is effectively determined by peek's tree structure
     # (arrival-stable node ids); within each cluster, pioneer (is_depr=0)
     # sorts before siblings (is_depr=1).
     #
     # Setting rank_by_cluster_size=False reverts to LPM-faithful 3-tuple for
-    # A/B diagnostics — that mode IGNORES cluster grouping entirely.
+    # A/B diagnostics -- that mode IGNORES cluster grouping entirely.
     if peek_lpm_sort:
         # LPM-byte-identical sort, Rust-backed. Build (main_hit, is_depr) per
         # queue position in a single pass, hand to _core.lpm_sort_order for
@@ -264,22 +264,22 @@ def peek_sort_inplace(
 
 
 # ---------------------------------------------------------------------------
-# peek_clpm — cluster-LPM.
+# peek_clpm -- cluster-LPM.
 #
 # Builds on peek_lpm:
 #   - Same pioneer/sibling semantics (token-prefix claim set for deprio)
 #   - Same LPM-exact main_hit signal
 # Adds three signals stock LPM can't cheaply produce:
-#   - arrival_bucket  = floor((now − arrive_ts) / W)  → FCFS across windows
-#   - req_score       = Σ (pending_count × edge_length) along ancestors → peek-native
+#   - arrival_bucket  = floor((now − arrive_ts) / W)  -> FCFS across windows
+#   - req_score       = Σ (pending_count x edge_length) along ancestors -> peek-native
 #                        dense-subtree weight
-#   - cluster_size    = pending_count at finest cluster → broader cluster wins
+#   - cluster_size    = pending_count at finest cluster -> broader cluster wins
 #
 # Sort key per req:
 #   (section_id, -main_hit, arrival_bucket, -req_score, -cluster_size, arrival_ns)
 #
 # Sections: 0 = warm, 1 = cold pioneer, 2 = cold sibling.
-# Deprio banishment preserved (sibling → section 2 → tail).
+# Deprio banishment preserved (sibling -> section 2 -> tail).
 # Key order rationale: section/main_hit primary preserves LPM cache locality;
 # bucket kicks in only as a tiebreak among cache-equal reqs (anti-starvation
 # within same-main_hit bucket); req_score/cluster_size tiebreak below bucket.
@@ -308,7 +308,7 @@ def peek_clpm_sort_inplace(
 
     Lane A (share=big_lane_share): sorted by (section, -main_hit, -req_score,
       -cluster_size, arrival_ns). Favors cache-warm + dense-subtree reqs.
-      Same order as peek_clpm_W=0 — preserves cache-locality advantage.
+      Same order as peek_clpm_W=0 -- preserves cache-locality advantage.
 
     Lane B (share=1-big_lane_share): sorted by (section, arrival_ns, -main_hit).
       Favors oldest pending. Guarantees small/singleton clusters aren't starved.
@@ -317,28 +317,28 @@ def peek_clpm_sort_inplace(
     `virtual_runtime = picks_so_far / share` picks next. Over many admissions,
     ratio converges to big_lane_share : (1-big_lane_share).
 
-    big_lane_share=1.0 → Lane A only (≡ peek_clpm_W=0, no starvation bound).
-    big_lane_share=0.0 → Lane B only (pure arrival-FCFS within section).
-    Default 0.7 → 70% admissions from the dense-cluster-preferring order,
+    big_lane_share=1.0 -> Lane A only (≡ peek_clpm_W=0, no starvation bound).
+    big_lane_share=0.0 -> Lane B only (pure arrival-FCFS within section).
+    Default 0.7 -> 70% admissions from the dense-cluster-preferring order,
     30% from the oldest-first fairness order.
 
-    `age_alpha` (default 0): if > 0, adds age-weighting on top — applied
-    inside Lane A's main_hit computation (effective_mh = mh + α × wait_s).
+    `age_alpha` (default 0): if > 0, adds age-weighting on top -- applied
+    inside Lane A's main_hit computation (effective_mh = mh + α x wait_s).
     Mostly redundant with lane interleaving; leave at 0 for clean A/B.
 
-    `arrival_ts` maps rid → wall-clock seconds (wired from phase tracking).
+    `arrival_ts` maps rid -> wall-clock seconds (wired from phase tracking).
     `main_hits` is optional dict of {rid_int: main_hit}; falls back to
     len(r.prefix_indices).
 
     `group_major` (default False): if True, Lane A groups reqs by prefix-
     sharing cluster (deepest ≥2-pending ancestor in peek's pending tree)
-    and emits group members contiguously. Groups ranked by depth × size;
+    and emits group members contiguously. Groups ranked by depth x size;
     singletons are groups of score 0. Tightens inter-req KV reuse within
     the decode batch beyond what the per-req cluster_size tiebreak can do.
 
     `dynamic_lane` (default False): if True, the Lane B share is recomputed
     each tick from queue composition + oldest-singleton wait time:
-        b_share = clamp(0.15 + 0.5·singleton_frac + 0.3·age_pressure, 0.1, 0.6)
+        b_share = clamp(0.15 + 0.5.singleton_frac + 0.3.age_pressure, 0.1, 0.6)
     then EMA-smoothed (α=0.3). `big_lane_share` arg is ignored in this
     mode. `slo_budget_s` (default 2.0) is the denominator for age_pressure.
 
@@ -397,9 +397,9 @@ def peek_clpm_sort_inplace(
     #
     #   singleton_frac  = fraction of reqs not in any ≥2-pending cluster
     #   age_pressure    = min(1, oldest_singleton_wait / slo_budget_s)
-    #   raw_b_share     = 0.15 + 0.50·singleton_frac + 0.30·age_pressure
+    #   raw_b_share     = 0.15 + 0.50.singleton_frac + 0.30.age_pressure
     #   b_share         = clamp(raw_b_share, 0.10, 0.60)
-    #   b_share         = 0.7·prev_b_share + 0.3·b_share        (EMA)
+    #   b_share         = 0.7.prev_b_share + 0.3.b_share        (EMA)
     #   big_lane_share  = 1 − b_share
     #
     # Floor 0.10 keeps a trickle of fairness even in all-cluster queues.
@@ -462,7 +462,7 @@ def peek_clpm_sort_inplace(
             section, -int(effective_mh), -int(req_score),
             -int(cluster_size), arrival_ns,
         ))
-        # Lane B: fairness — oldest-first within section.
+        # Lane B: fairness -- oldest-first within section.
         lane_b.append((
             section, arrival_ns, -int(mh),
         ))
@@ -485,8 +485,8 @@ def peek_clpm_sort_inplace(
         """Lane A ordering. Per-req key by default; group-major if requested.
 
         Group-major: within each section, reqs sharing a cluster_node are
-        emitted contiguously. Groups ranked by depth × size (deeper shared
-        prefix × more members = higher priority). Singletons = groups of
+        emitted contiguously. Groups ranked by depth x size (deeper shared
+        prefix x more members = higher priority). Singletons = groups of
         score 0, admitted last within their section in arrival order.
         Within a group, order by (-main_hit, arrival_ns).
         """

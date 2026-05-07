@@ -57,20 +57,20 @@ def test_cold_cluster_pioneer_kept_siblings_deprioritized():
     ]
     rid_map = _intern_map(["1", "2", "3"])
     dep = compute_in_batch_deprioritize(reqs, rid_map, tree)
-    # First in queue order ("1") is the pioneer — not deprioritized.
+    # First in queue order ("1") is the pioneer -- not deprioritized.
     assert "1" not in dep
     # The other two are deprioritized.
     assert dep == {"2", "3"}
 
 
 def test_warm_reqs_skip_in_batch_check():
-    """Reqs whose main_hit > check_threshold are already warm — skip the
+    """Reqs whose main_hit > check_threshold are already warm -- skip the
     in-batch deprioritize check even if the cluster is large."""
     tree = PendingTree()
     shared = list(range(100, 140))
     for i, tail in enumerate([[1], [2], [3]]):
         tree.insert(i + 1, shared + tail)
-    # prefix_indices length = 33 → above the 32-token check threshold.
+    # prefix_indices length = 33 -> above the 32-token check threshold.
     reqs = [
         FakeReq(
             rid=str(i + 1),
@@ -86,9 +86,9 @@ def test_warm_reqs_skip_in_batch_check():
 
 def test_shallow_cluster_below_deprioritize_threshold():
     """A cluster with shared prefix depth < deprioritize_threshold does not
-    trigger deprioritize — the sharing is too shallow to be worth it."""
+    trigger deprioritize -- the sharing is too shallow to be worth it."""
     tree = PendingTree()
-    shared = list(range(100, 110))  # only 10 shared tokens — below the 32 threshold
+    shared = list(range(100, 110))  # only 10 shared tokens -- below the 32 threshold
     for i, tail in enumerate([[1], [2], [3]]):
         tree.insert(i + 1, shared + tail)
     reqs = [
@@ -104,10 +104,10 @@ def test_multiple_clusters_independent_pioneers():
     """Each cluster's first req in queue order is the pioneer, independent
     of which cluster iterated first."""
     tree = PendingTree()
-    # Cluster A — rids 1,2 share a 40-token prefix starting at token 100.
+    # Cluster A -- rids 1,2 share a 40-token prefix starting at token 100.
     for i, tail in enumerate([[1], [2]]):
         tree.insert(i + 1, list(range(100, 140)) + tail)
-    # Cluster B — rids 3,4 share a different 40-token prefix starting at 200.
+    # Cluster B -- rids 3,4 share a different 40-token prefix starting at 200.
     for i, tail in enumerate([[3], [4]]):
         tree.insert(i + 3, list(range(200, 240)) + tail)
 
@@ -128,7 +128,7 @@ def test_multiple_clusters_independent_pioneers():
 
 
 def test_unknown_rid_deprio_by_token_prefix():
-    """LPM-byte-exact deprio is purely token-prefix based — rid_map membership
+    """LPM-byte-exact deprio is purely token-prefix based -- rid_map membership
     doesn't gate it. Req 99 shares the 40-token prefix with 1 and 2, so it
     gets deprioritized just like 2. Matches sglang's aux-tree semantics."""
     tree = PendingTree()
@@ -168,7 +168,7 @@ def test_threshold_disabled_returns_empty():
 
 
 # ---------------------------------------------------------------------------
-# peek_sort_inplace — the full LPM-semantic sort with cluster-size tiebreak.
+# peek_sort_inplace -- the full LPM-semantic sort with cluster-size tiebreak.
 # ---------------------------------------------------------------------------
 
 
@@ -194,7 +194,7 @@ def test_sort_groups_siblings_adjacent_to_pioneer():
     """Cluster-grouped sort: same-cluster members land contiguously in the
     queue. Within each cluster, pioneer (non-deprioritized) sorts before
     siblings (deprioritized). Inter-cluster order is by cluster_node_id
-    (stable under tree structure) — NOT by cluster size, so small clusters
+    (stable under tree structure) -- NOT by cluster size, so small clusters
     aren't starved by bigger ones cutting in."""
     tree = PendingTree()
     big_pref = list(range(100, 140))
@@ -250,7 +250,7 @@ def test_sort_rank_by_size_off_matches_sglang_lpm():
     rid_map = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6}
     peek_sort_inplace(reqs, rid_map, tree, rank_by_cluster_size=False)
     # With rank-by-size off, both pioneers tie at main_hit=0 and both are
-    # not-deprioritized → rid tiebreak makes "1" come first.
+    # not-deprioritized -> rid tiebreak makes "1" come first.
     assert [r.rid for r in reqs] == ["1", "5"]
 
 

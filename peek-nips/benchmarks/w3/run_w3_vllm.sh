@@ -1,9 +1,9 @@
 #!/bin/bash
 # W3 vLLM DP=1 driver (paper §4.3, multi-GPU 70B).
 #
-# Llama-3.1-70B-Instruct at TP=2 on a single replica (2×H100 80GB).
+# Llama-3.1-70B-Instruct at TP=2 on a single replica (2xH100 80GB).
 #   - PEEK hooks injected into vLLM's spawn child via a sitecustomize.py shim
-#     on PYTHONPATH (vllm v1 spawns EngineCore as a fresh Python process —
+#     on PYTHONPATH (vllm v1 spawns EngineCore as a fresh Python process --
 #     parent monkey-patches don't inherit). See
 #     scripts/peek_sitecustomize/sitecustomize.py.
 #   - vLLM has no LPM scheduler, so its stock baseline is FCFS+APC+LRU
@@ -62,7 +62,7 @@ mkdir -p "$RESULTS_DIR"
 
 declare -A CELL_GROUPS CELL_PREFIX CELL_DECODE_MIX CELL_MAX_TOKENS CELL_N CELL_WARMUP
 
-# Cell C (chat, admission-bound) — same as benchmarks/w3/README.md cell C.
+# Cell C (chat, admission-bound) -- same as benchmarks/w3/README.md cell C.
 CELL_GROUPS[C]=88
 CELL_PREFIX[C]=1500
 CELL_DECODE_MIX[C]=""           # empty -> use --max-tokens (fixed)
@@ -70,7 +70,7 @@ CELL_MAX_TOKENS[C]=128
 CELL_N[C]=1000
 CELL_WARMUP[C]=200
 
-# Cell B (RAG, decode-bound) — same as benchmarks/w3/README.md cell B.
+# Cell B (RAG, decode-bound) -- same as benchmarks/w3/README.md cell B.
 CELL_GROUPS[B]=14
 CELL_PREFIX[B]=4096
 CELL_DECODE_MIX[B]="10:128,25:512,30:1024,25:2048,10:4096"
@@ -180,7 +180,7 @@ run_bench() {
 }
 
 # ------------------------------ main loop ---------------------------------
-# Policy-major loop: one vLLM server per policy, all (cell × seed) for that
+# Policy-major loop: one vLLM server per policy, all (cell x seed) for that
 # policy run back-to-back. vLLM doesn't expose /flush_cache, so we kill and
 # relaunch the server BETWEEN cells to ensure each cell starts cold.
 

@@ -21,7 +21,7 @@ what gets evicted, and what does that cost?
 
 * LRU: evicts whichever node was accessed longest ago. If a hot system
   prompt has been sitting untouched while cold leaves were recently touched,
-  LRU evicts the hot prompt — forcing every pending req that shared it to
+  LRU evicts the hot prompt -- forcing every pending req that shared it to
   re-prefill.
 * PeekDemandStrategy: evicts lowest (pending_demand, last_access_time) first.
   Zero-demand nodes always evict before nonzero. Hot prompts are protected
@@ -80,7 +80,7 @@ def _match_len(cache: RadixCache, tokens: List[int]) -> int:
     return len(m.device_indices)
 
 def _reprefill_cost(pending: List[List[int]], cache: RadixCache) -> int:
-    """Cost = sum over pending reqs of (len(tokens) - cache match) — the
+    """Cost = sum over pending reqs of (len(tokens) - cache match) -- the
     prefix re-work needed after eviction."""
     total = 0
     for tokens in pending:
@@ -91,7 +91,7 @@ def test_peek_eviction_saves_reprefill_vs_lru(capsys: pytest.CaptureFixture) -> 
     """Construct a cache with one hot prefix (many pending reqs depend) and
     several cold leaves (no dependents). Artificially age the hot prefix
     (LRU would evict it first) and force eviction of ~same tokens as the
-    hot prefix. LRU evicts hot → high re-prefill; peek evicts cold → zero."""
+    hot prefix. LRU evicts hot -> high re-prefill; peek evicts cold -> zero."""
     hot_prefix = list(range(1, 41))                     # 40 tokens, shared system prompt
     hot_reqs = [hot_prefix + [100 + i] for i in range(20)]  # 20 pending reqs share it
 
@@ -146,16 +146,16 @@ def test_peek_eviction_saves_reprefill_vs_lru(capsys: pytest.CaptureFixture) -> 
         print(
             f"\n  hot prefix: {len(hot_prefix)} tokens, {len(hot_reqs)} pending reqs depend on it"
         )
-        print(f"  cold leaves: {len(cold_leaves)} × {len(cold_leaves[0])} tokens, 0 pending demand")
+        print(f"  cold leaves: {len(cold_leaves)} x {len(cold_leaves[0])} tokens, 0 pending demand")
         print(f"  evicted {num_tokens_to_evict} tokens from each cache")
         print(f"  re-prefill tokens caused BY THE EVICTION (Δ from baseline):")
         print(f"    LRU:             {lru_cost:>6d}")
         print(f"    PeekDemand:      {peek_cost:>6d}")
         print(f"  peek saves {lru_cost - peek_cost} re-prefill tokens")
 
-    # Peek should evict only cold nodes → zero eviction-induced re-prefill.
+    # Peek should evict only cold nodes -> zero eviction-induced re-prefill.
     assert peek_cost == 0, (
-        f"peek caused {peek_cost} extra re-prefill tokens — should have evicted cold only"
+        f"peek caused {peek_cost} extra re-prefill tokens -- should have evicted cold only"
     )
     # LRU should have evicted the aged hot prefix, forcing all pending reqs to re-prefill it.
     assert lru_cost >= len(hot_reqs) * len(hot_prefix), (
@@ -164,7 +164,7 @@ def test_peek_eviction_saves_reprefill_vs_lru(capsys: pytest.CaptureFixture) -> 
 
 def test_peek_falls_back_to_lru_within_same_demand(capsys: pytest.CaptureFixture) -> None:
     """When two nodes have the same (zero) demand, peek should break ties by
-    LRU — evicting the older one first. Validates the tuple ordering."""
+    LRU -- evicting the older one first. Validates the tuple ordering."""
     cache = _make_cache()
     path_old = [100, 101, 102, 103]
     path_new = [200, 201, 202, 203]
@@ -183,7 +183,7 @@ def test_peek_falls_back_to_lru_within_same_demand(capsys: pytest.CaptureFixture
         else:
             walk(child, now - 0.1)
 
-    peek_tree = PendingTree()  # no pending — everything is zero demand
+    peek_tree = PendingTree()  # no pending -- everything is zero demand
     cache.eviction_strategy = PeekDemandStrategy(peek_tree)
 
     # Evict just enough to remove one path (4 tokens).

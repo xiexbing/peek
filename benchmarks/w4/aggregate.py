@@ -3,13 +3,13 @@
 
 Walks results/<policy>/<dataset>_<cell>/seed_<seed>/result.jsonl, extracts
 summary metrics (TTFT/TPOT/ITL/E2E p50/p99 + throughput + concurrency),
-and prints a per-cell comparison table grouped by (policy × cell × dataset).
+and prints a per-cell comparison table grouped by (policy x cell x dataset).
 
 Each result.jsonl has a single summary record (sglang's bench_serving
 writes one per run when --output-file is given).
 
 When --output-details was used, the same record additionally carries
-per-request `ttfts`, `itls`, `output_lens`, `errors` arrays — useful for
+per-request `ttfts`, `itls`, `output_lens`, `errors` arrays -- useful for
 turn-level analysis (turn-1 vs turn-2+ TTFT split is approximated by
 ranking ttfts by per-session order in subsequent W2-specific scripts).
 
@@ -127,7 +127,7 @@ def main() -> None:
                 cache = cell_cache_stats(seed_dir)
                 runs[(policy, dataset, cell)].append({"seed": seed, **rec, "_cache": cache})
 
-    print(f"\n=== W2 results — primary metric: {args.metric} ===\n")
+    print(f"\n=== W2 results -- primary metric: {args.metric} ===\n")
     print(f"{'policy':<10} {'dataset':<10} {'cell':<10} {'seeds':<6} "
           f"{'mean_ttft':<11} {'p99_ttft':<11} {'p99_tpot':<10} "
           f"{'p99_itl':<10} {'p99_e2e':<10} {'thpt':<8} {'hit%':<7} {'retr':<6} {'errs':<5}")
@@ -152,8 +152,8 @@ def main() -> None:
         )
         hit = cavg("hit_rate")
         retr = cavg("retracted_reqs")
-        hit_s = f"{hit*100:.1f}" if hit == hit else "—"
-        retr_s = f"{retr:.0f}" if retr == retr else "—"
+        hit_s = f"{hit*100:.1f}" if hit == hit else "--"
+        retr_s = f"{retr:.0f}" if retr == retr else "--"
 
         print(f"{policy:<10} {dataset:<10} {cell:<10} {n_seeds:<6} "
               f"{avg('mean_ttft_ms'):<11.0f} {avg('p99_ttft_ms'):<11.0f} {avg('p99_tpot_ms'):<10.1f} "
@@ -162,7 +162,7 @@ def main() -> None:
               f"{hit_s:<7} {retr_s:<6} {errs:<5}")
 
     # Headline comparison: peek vs lpm_lru deltas, per (dataset, cell)
-    print(f"\n=== baseline → peek deltas ({args.metric}, lower is better) ===\n")
+    print(f"\n=== baseline -> peek deltas ({args.metric}, lower is better) ===\n")
     by_cell: dict[tuple, dict[str, float]] = defaultdict(dict)
     for (policy, dataset, cell), recs in runs.items():
         vals = [r.get(args.metric) for r in recs if r.get(args.metric) is not None]
@@ -177,7 +177,7 @@ def main() -> None:
         for p in ("clpm_gm_dl_pe_decay", "clpm_gm_dl", "clpm_gm_dl_pe"):
             v = per_pol.get(p)
             if v is None or b1 is None:
-                row.append(f"{'—':<14}")
+                row.append(f"{'--':<14}")
             else:
                 delta_pct = (b1 - v) / b1 * 100  # positive = peek is faster
                 row.append(f"{v:.0f} ({delta_pct:+.1f}%)".ljust(14))

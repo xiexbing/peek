@@ -18,7 +18,7 @@
 Qwen 2.5 32B workload: 100 groups, 1000 requests, Poisson arrivals.
 
 Simulates the streaming HTTP path: each request has a prefill phase
-(waiting → scheduled → first token) and a decode phase (generating
+(waiting -> scheduled -> first token) and a decode phase (generating
 remaining tokens).  remove() must fire at first-token time, while
 the request is still decoding.
 """
@@ -89,10 +89,10 @@ def _poisson_order(n, seed=SEED):
 # ---------------------------------------------------------------------------
 
 class PhasedServer:
-    """Server with explicit prefill → first_token → decode → complete phases.
+    """Server with explicit prefill -> first_token -> decode -> complete phases.
 
     Each request goes through:
-      waiting → prefill (PREFILL_CYCLES) → FIRST TOKEN → decode (DECODE_CYCLES) → complete
+      waiting -> prefill (PREFILL_CYCLES) -> FIRST TOKEN -> decode (DECODE_CYCLES) -> complete
     """
 
     def __init__(self, batch_size=BATCH_SIZE,
@@ -113,7 +113,7 @@ class PhasedServer:
         first_token = []
         completed = []
 
-        # Tick decoding → complete
+        # Tick decoding -> complete
         still_decoding = []
         for req, ttl in self.decoding:
             if ttl <= 1:
@@ -122,7 +122,7 @@ class PhasedServer:
                 still_decoding.append((req, ttl - 1))
         self.decoding = still_decoding
 
-        # Tick prefilling → first token
+        # Tick prefilling -> first token
         still_prefilling = []
         for req, ttl in self.prefilling:
             if ttl <= 1:
@@ -132,7 +132,7 @@ class PhasedServer:
                 still_prefilling.append((req, ttl - 1))
         self.prefilling = still_prefilling
 
-        # Admit from waiting → prefilling
+        # Admit from waiting -> prefilling
         to_admit = min(self.batch_size, len(self.waiting))
         for _ in range(to_admit):
             req = self.waiting.pop(0)
@@ -312,7 +312,7 @@ class TestRemoveAtTTFT(unittest.TestCase):
         self.assertLess(
             trie_zero_cycle, last_completion_cycle,
             f"Trie drained at cycle {trie_zero_cycle} but last completion "
-            f"at cycle {last_completion_cycle} — trie should drain first",
+            f"at cycle {last_completion_cycle} -- trie should drain first",
         )
 
     def test_client_pending_matches_trie(self):

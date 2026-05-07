@@ -14,7 +14,7 @@
 
 """Peek server-side scheduler hooks.
 
-All feature-gating logic lives here — the patches injected into vLLM and SGLang
+All feature-gating logic lives here -- the patches injected into vLLM and SGLang
 are thin, unconditional calls into these functions.  Each hook internally decides
 whether to activate (based on config flags, sharing detection, throttling) so
 that non-sharing workloads pay zero overhead.
@@ -422,7 +422,7 @@ def vllm_reorder_waiting_queue(
     sequential and requests sharing a prefix have identical hash prefixes).
 
     Guard condition: when queue depth >= *reorder_threshold*, client-side
-    reorder has already grouped requests — skip server-side reorder.
+    reorder has already grouped requests -- skip server-side reorder.
     When queue is shallow (< threshold), apply server-side trie DFS
     since vLLM has no native prefix-aware scheduling.
     """
@@ -452,7 +452,7 @@ def schedule_hook_vllm(
     waiting: list[Any],
     kv_cache_manager: Any,
 ) -> None:
-    """Legacy entry point — delegates to VllmPeekEngine.
+    """Legacy entry point -- delegates to VllmPeekEngine.
 
     Kept for backward compatibility with existing tests and callers.
     """
@@ -527,7 +527,7 @@ def detect_sharing_sglang(
 ) -> bool:
     """Check if any two requests in the SGLang waiting queue share a prefix.
 
-    Uses the first *key_len* tokens as the sharing key — the same key
+    Uses the first *key_len* tokens as the sharing key -- the same key
     used for grouping.  A single-token check is too coarse (most prompts
     start with <bos>) and causes PeekEngine to activate on workloads
     with zero real sharing.
@@ -554,7 +554,7 @@ def _fast_prefix_group_reorder(
     preserves arrival order (FCFS).  Mutates *waiting_queue* in-place.
 
     This avoids building a trie or walking the radix cache in the
-    hot scheduling loop — just a hash-based grouping.
+    hot scheduling loop -- just a hash-based grouping.
     """
     groups: dict[tuple, list[Any]] = defaultdict(list)
     for r in waiting_queue:
@@ -579,11 +579,11 @@ def _fast_prefix_group_reorder(
 def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
     """Called at the top of SGLang's _compute_prefix_matches.
 
-    Performs group-level prefix matching at O(G × D) cost instead of
-    per-request O(N × D).  For each prefix group:
+    Performs group-level prefix matching at O(G x D) cost instead of
+    per-request O(N x D).  For each prefix group:
       1. Match ONE representative against the radix tree.
       2. Copy match results to all group members.
-      3. Score by cached_length × group_size.
+      3. Score by cached_length x group_size.
       4. Increment queue ref counts once per group (not per request).
 
     Reorders the waiting queue by score (highest first) and marks all
@@ -626,7 +626,7 @@ def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
         groups[key].append(r)
 
     # Match ONE representative per group against the radix tree
-    # and copy results to all members — O(G × D) instead of O(N × D)
+    # and copy results to all members -- O(G x D) instead of O(N x D)
     import time as _time
     from sglang.srt.mem_cache.radix_cache import MatchPrefixParams, RadixKey
 
@@ -677,7 +677,7 @@ def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
     # Compute future_refs per group: count of requests in the SAME
     # group beyond the first wave.  High future_refs = defer this group
     # (keep its prefix cached for later use).
-    # Estimate wave size as min(total_requests, 32) — rough batch size.
+    # Estimate wave size as min(total_requests, 32) -- rough batch size.
     _BATCH_EST = 32
     scored: list[tuple[float, list[Any]]] = []
     for key, members, cached_len, eviction_risk in group_data:
@@ -685,10 +685,10 @@ def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
         future_refs = max(0, group_size - _BATCH_EST)
 
         # Coordinated score from paper Eq. 1:
-        #   cache_frac × 10^4        → exploit cached (schedule first)
-        #   - future_refs             → defer if many future requests need it
-        #   + eviction_risk × 10^2   → urgent: schedule before eviction
-        #   + count × 10^-3          → tiebreaker: larger groups first
+        #   cache_frac x 10^4        -> exploit cached (schedule first)
+        #   - future_refs             -> defer if many future requests need it
+        #   + eviction_risk x 10^2   -> urgent: schedule before eviction
+        #   + count x 10^-3          -> tiebreaker: larger groups first
         prefix_len = len(getattr(members[0], "origin_input_ids", []))
         cache_frac = cached_len / max(prefix_len, 1)
         score = (
@@ -747,7 +747,7 @@ def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
     else:
         cache_capacity_groups = num_groups
 
-    # Protect at most 3/4 of cache capacity — leave 25% for LRU
+    # Protect at most 3/4 of cache capacity -- leave 25% for LRU
     # rotation so new groups can get cached.  This balances protection
     # (avoid evicting needed prefixes) with rotation (avoid ossification).
     protect_k = min(num_groups, max(1, cache_capacity_groups * 3 // 4))
@@ -762,7 +762,7 @@ def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
             tree_cache.inc_queue_ref(node)
             protected_nodes.append(node)
 
-    # Track for next cycle's targeted reset — O(K × depth) not O(T)
+    # Track for next cycle's targeted reset -- O(K x depth) not O(T)
     tree_cache._peek_prev_protected = protected_nodes
 
     _elapsed = _time_mod.perf_counter() - _t0
@@ -786,7 +786,7 @@ def sglang_post_match_reorder(waiting_queue: list[Any]) -> None:
     Groups requests by their matched radix node (last_node), scores
     each group by total cached tokens, and reorders so highest-scoring
     groups are scheduled first.  This achieves cache-aware scheduling
-    at O(N) cost — no trie construction, no extra cache walk — by
+    at O(N) cost -- no trie construction, no extra cache walk -- by
     piggybacking on the prefix matching that already ran.
 
     Called at the end of _compute_prefix_matches, after all requests
@@ -803,7 +803,7 @@ def sglang_post_match_reorder(waiting_queue: list[Any]) -> None:
         cached_len = len(getattr(r, "prefix_indices", []))
         groups[node_id].append((cached_len, r))
 
-    # Score each group: total cached tokens (= cached_len × group_size
+    # Score each group: total cached tokens (= cached_len x group_size
     # since all members share the same prefix match)
     scored: list[tuple[int, list[Any]]] = []
     for node_id, members in groups.items():
@@ -811,7 +811,7 @@ def sglang_post_match_reorder(waiting_queue: list[Any]) -> None:
         reqs = [r for _, r in members]
         scored.append((total_cached, reqs))
 
-    # Highest score first → exploit cached prefixes
+    # Highest score first -> exploit cached prefixes
     scored.sort(key=lambda x: x[0], reverse=True)
 
     waiting_queue.clear()
@@ -843,11 +843,11 @@ def queue_aware_eviction_priority(node: Any) -> tuple[int, float, float]:
     """Compute eviction priority for a RadixCache TreeNode.
 
     Returns ``(is_referenced, cost_score, last_access_time)`` where lower
-    values are evicted first.  O(1) per node — uses cached ``node.depth``.
+    values are evicted first.  O(1) per node -- uses cached ``node.depth``.
 
     Hard partition: ``is_referenced`` (0 or 1) ensures unreferenced nodes
     are ALWAYS evicted before ANY referenced node.  This is the key
-    mechanism — it protects prefixes that pending requests need.
+    mechanism -- it protects prefixes that pending requests need.
 
     Within each partition:
       - ``cost_score = log(1 + ref_count) * depth`` breaks ties

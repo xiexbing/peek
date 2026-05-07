@@ -2,20 +2,20 @@
 # W1 benchmark driver (vllm-based policies). Mirror of run_w1_sglang.sh
 # adapted to vllm v1: peek hooks are injected into vllm's spawn child via
 # a sitecustomize.py shim on PYTHONPATH (vllm v1 spawns EngineCore as a
-# fresh Python process — parent monkey-patches don't inherit).
+# fresh Python process -- parent monkey-patches don't inherit).
 #
-# Matrix is identical to the sglang driver — see run_w1_sglang.sh for the
+# Matrix is identical to the sglang driver -- see run_w1_sglang.sh for the
 # G/prefix/N/warmup/oversub table and the rate plan.
 #
 # Policies map to peek env flags:
-#   fcfs_lru   vllm vanilla (FCFS, stock LRU eviction)        — baseline
-#   fcfs_apc_lru   not applicable (vllm has no LPM scheduler analogue) — skipped
-#   fcfs_apc_pe   PEEK_ONLINE_EVICTION=1                                — eviction-only ablation
-#   clpm   PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1                                    — sched stage 1
-#   clpm_gm   PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 PEEK_ONLINE_CLPM_GROUP_MAJOR=1            — sched stage 2
-#   clpm_gm_dl   PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 GROUP_MAJOR=1 DYNAMIC_LANE=1       — sched stage 3
-#   clpm_gm_pe   FLPM + GROUP_MAJOR + EVICTION                  — co-design (primary claim)
-#   clpm_gm_dl_pe   FLPM + GROUP_MAJOR + DYNAMIC_LANE + EVICTION   — co-design + fairness
+#   fcfs_lru   vllm vanilla (FCFS, stock LRU eviction)        -- baseline
+#   fcfs_apc_lru   not applicable (vllm has no LPM scheduler analogue) -- skipped
+#   fcfs_apc_pe   PEEK_ONLINE_EVICTION=1                                -- eviction-only ablation
+#   clpm   PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1                                    -- sched stage 1
+#   clpm_gm   PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 PEEK_ONLINE_CLPM_GROUP_MAJOR=1            -- sched stage 2
+#   clpm_gm_dl   PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 GROUP_MAJOR=1 DYNAMIC_LANE=1       -- sched stage 3
+#   clpm_gm_pe   FLPM + GROUP_MAJOR + EVICTION                  -- co-design (primary claim)
+#   clpm_gm_dl_pe   FLPM + GROUP_MAJOR + DYNAMIC_LANE + EVICTION   -- co-design + fairness
 #
 # Note on fcfs_apc_pe vs sglang: sglang's fcfs_apc_pe used PEEK_ONLINE_EVICTION_MODE=cluster.
 # vllm's eviction patch supports only the `plain` mode (the recency/cluster/
@@ -91,7 +91,7 @@ cell_rate() {
 }
 
 # Per-(rate-band) bench concurrency cap. Sets the steady-state pending-queue
-# depth at vLLM (Waiting = cap - Running): moderate→~60-100, heavy→~150-200.
+# depth at vLLM (Waiting = cap - Running): moderate->~60-100, heavy->~150-200.
 # Uniform across cells; differing μ between cells is absorbed by the cell_rate
 # table above.
 cell_concurrency() {
@@ -158,7 +158,7 @@ launch_server() {
   local env_pref; env_pref="$(policy_env "$policy")"
   local apc_flag; apc_flag="$(policy_apc_flag "$policy")"
 
-  echo "[w1] launching $policy (env='$env_pref' apc='$apc_flag') → $slog"
+  echo "[w1] launching $policy (env='$env_pref' apc='$apc_flag') -> $slog"
   env \
     HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME" \
     PYTHONPATH="$SITECUSTOMIZE_DIR:${PYTHONPATH:-}" \
@@ -241,7 +241,7 @@ run_one() {
 
 # ------------------------------ main loop ---------------------------------
 # Same policy-major loop as the sglang driver: one launch per unique policy,
-# all (seed × cell × rate) cells of that policy back-to-back.
+# all (seed x cell x rate) cells of that policy back-to-back.
 
 FULL_RESTART="${FULL_RESTART:-0}"
 
@@ -272,16 +272,16 @@ done
 
 echo "[w1] plan: $total_runs runs across ${#policy_order[@]} policies"
 echo "[w1] cells=$CELLS rates=$RATES seeds=$SEEDS"
-echo "[w1] results → $RESULTS_DIR"
+echo "[w1] results -> $RESULTS_DIR"
 echo
 
 # Preflight: peek import + sitecustomize present.
 "$PY" -c "import peek.online.engines.vllm.patch_hook" 2>/dev/null \
-  || { echo "[w1] preflight FAIL: peek.online.engines.vllm.patch_hook not importable — run 'maturin develop --release' first"; exit 1; }
+  || { echo "[w1] preflight FAIL: peek.online.engines.vllm.patch_hook not importable -- run 'maturin develop --release' first"; exit 1; }
 [[ -f "$SITECUSTOMIZE_DIR/sitecustomize.py" ]] \
   || { echo "[w1] preflight FAIL: sitecustomize shim missing: $SITECUSTOMIZE_DIR/sitecustomize.py"; exit 1; }
 
-# Env fingerprint — written to the results dir so reviewers can check
+# Env fingerprint -- written to the results dir so reviewers can check
 # which engine/torch/python the W1 numbers were collected against.
 VLLM_VERSION="$("$PY" -c 'import vllm; print(vllm.__version__)')"
 TORCH_VERSION="$("$PY" -c 'import torch; print(torch.__version__)' 2>/dev/null || echo unknown)"
@@ -308,7 +308,7 @@ ENV_FILE="$RESULTS_DIR/env.txt"
   echo "policies_core:  $POLICIES_CORE"
   echo "primary_cell:   $PRIMARY_CELL"
 } > "$ENV_FILE"
-echo "[w1] env fingerprint → $ENV_FILE"
+echo "[w1] env fingerprint -> $ENV_FILE"
 echo "[w1]   vllm=$VLLM_VERSION torch=$TORCH_VERSION python=$PY_VERSION"
 echo "[w1]   model=$MODEL gpu_mem_util=$GPU_MEM_UTIL"
 
@@ -340,14 +340,14 @@ for policy in "${policy_order[@]}"; do
     if [[ "$server_up" == 0 || "$FULL_RESTART" == "1" ]]; then
       slog="$slog_base"
       if ! launch_server "$policy" "$slog"; then
-        echo "[w1]   LAUNCH FAILED for $policy — skipping"
+        echo "[w1]   LAUNCH FAILED for $policy -- skipping"
         server_up=0; break
       fi
       server_up=1
     fi
 
     if ! run_one "$cell" "$rate_label" "$policy" "$seed" "$out"; then
-      echo "[w1]   BENCH FAILED for $policy — server log tail:"
+      echo "[w1]   BENCH FAILED for $policy -- server log tail:"
       tail -n 30 "$slog_base" || true
       kill_server
       server_up=0

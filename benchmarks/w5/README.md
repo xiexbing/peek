@@ -1,9 +1,9 @@
-# W5 — Heterogeneous chat (no-regress safety test)
+# W5 -- Heterogeneous chat (no-regress safety test)
 
 > Environment: sglang 0.5.9 / vllm 0.19.1, torch 2.9.1, Python 3.12,
-> 1×H100 80GB (bf16). Full spec at `benchmarks/ENVIRONMENT.md`.
+> 1xH100 80GB (bf16). Full spec at `benchmarks/ENVIRONMENT.md`.
 > Rate calibration: per-engine, per-cell. r_sat = highest rate with
-> `errored=0` AND `slo_attainment_pct >= 90%`; `moderate = 0.4 × r_sat`, `heavy = 0.8 × r_sat`. See
+> `errored=0` AND `slo_attainment_pct >= 90%`; `moderate = 0.4 x r_sat`, `heavy = 0.8 x r_sat`. See
 > `benchmarks/ENVIRONMENT.md#rate-calibration-moderate--heavy-per-cell`.
 
 
@@ -24,9 +24,9 @@ under mixed traffic. W5 tests whether it works.
 Mix:
   40% of requests  : one of G=10 shared system prompts (500 tokens each)
   60% of requests  : unique prompts, length lognormal(mean=512, sigma≈2)
-                     spanning 32–4096 tokens
+                     spanning 32-4096 tokens
 
-Decode: 64–256 tokens (variable)
+Decode: 64-256 tokens (variable)
 Distribution (within the 40% shared segment): Zipf α=1.0
 Total N: 1500
 Arrival: Poisson
@@ -50,7 +50,7 @@ sensitivity.
 sharing structure is weak?**
 
 If peek regresses here, it's not production-deployable as a general
-scheduler — it would only be usable for known-sharing-heavy workloads,
+scheduler -- it would only be usable for known-sharing-heavy workloads,
 which is a much narrower claim.
 
 ## Policy matrix
@@ -62,26 +62,26 @@ matters is headline stock-vs-peek parity.
 | -- | --------- | --------- | ---- |
 | lpm_lru | SGLang LPM | LRU | baseline |
 | clpm_gm | cLPM + GM | LRU | does scheduling regress? |
-| clpm_gm_dl | cLPM + GM + DL | LRU | **does dynamic-lane protect singletons?** — primary W5 claim |
-| clpm_gm_pe | cLPM + GM + peek queue-aware | peek queue-aware (cluster mode) | full co-design — should be neutral |
+| clpm_gm_dl | cLPM + GM + DL | LRU | **does dynamic-lane protect singletons?** -- primary W5 claim |
+| clpm_gm_pe | cLPM + GM + peek queue-aware | peek queue-aware (cluster mode) | full co-design -- should be neutral |
 
 Four rows. Two claims:
 
-1. **clpm_gm_dl (with dynamic lane) ≈ lpm_lru** on all metrics → dynamic lane works
-2. **clpm_gm_pe ≈ lpm_lru** on all metrics → full peek in production is safe-default
+1. **clpm_gm_dl (with dynamic lane) ≈ lpm_lru** on all metrics -> dynamic lane works
+2. **clpm_gm_pe ≈ lpm_lru** on all metrics -> full peek in production is safe-default
 
 Explicit prediction: **clpm_gm may regress here** because group-major without
 dynamic lane can starve singletons. clpm_gm_dl fixes it.
 
 ## Cells
 
-Draft — W5 axes are the **sharing ratio**:
+Draft -- W5 axes are the **sharing ratio**:
 
 | cell | shared % | singleton % | purpose |
 | ---- | -------- | ----------- | ------- |
-| A    | 60       | 40          | moderate sharing — typical SaaS chat |
-| **B** | **40**  | **60**      | **PRIMARY** — canonical heterogeneous |
-| C    | 20       | 80          | singleton-dominated — worst case for LPM-style schedulers |
+| A    | 60       | 40          | moderate sharing -- typical SaaS chat |
+| **B** | **40**  | **60**      | **PRIMARY** -- canonical heterogeneous |
+| C    | 20       | 80          | singleton-dominated -- worst case for LPM-style schedulers |
 
 ## Rates
 
@@ -102,17 +102,17 @@ Same as W1: 42, 142, 242.
 Standard set. Focus on **per-class metrics** (shared-segment vs
 singleton-segment) as well as aggregate:
 
-- Singleton TTFT p50 / p99 — must not regress
-- Singleton goodput — must not regress
-- Shared-segment metrics — may improve (peek's normal advantage)
-- Aggregate metrics — must be ≈ stock (within ±3%)
+- Singleton TTFT p50 / p99 -- must not regress
+- Singleton goodput -- must not regress
+- Shared-segment metrics -- may improve (peek's normal advantage)
+- Aggregate metrics -- must be ≈ stock (within ±3%)
 
 ## What we need to build
 
-- **Mixed-distribution workload generator** — partial existing
+- **Mixed-distribution workload generator** -- partial existing
   infrastructure (`bench_shared_prompts.py` does shared-only; needs a
   knob to inject a singleton fraction with lognormal prompt length)
-- **Per-class metric aggregation** — split by "which class was this req"
+- **Per-class metric aggregation** -- split by "which class was this req"
   at report time
 
 ## Pre-registered predictions
@@ -137,6 +137,6 @@ singleton-segment) as well as aggregate:
 
 ## Status
 
-Draft. Workload generator needs a small extension. No urgent timeline —
+Draft. Workload generator needs a small extension. No urgent timeline --
 W5 runs last (after W1/W3/W4 confirm peek's positive claims; W5 seals
 the "doesn't hurt" story).

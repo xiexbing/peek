@@ -15,9 +15,9 @@
 """Tests for the queue-aware eviction policy.
 
 Split into two groups:
-  1. Unit tests for QueueAwareStrategy — test priority logic directly on TreeNode
+  1. Unit tests for QueueAwareStrategy -- test priority logic directly on TreeNode
      objects without needing a full RadixCache (avoids CUDA import chain).
-  2. Integration tests that import RadixCache — skipped if sgl_kernel is
+  2. Integration tests that import RadixCache -- skipped if sgl_kernel is
      unavailable (no GPU environment).
 """
 
@@ -66,7 +66,7 @@ class TestQueueAwareStrategyPriority:
         prio_unref = strategy.get_priority(node_unref)
         prio_ref = strategy.get_priority(node_ref)
 
-        # (0, ...) < (1, ...) — unreferenced evicted first
+        # (0, ...) < (1, ...) -- unreferenced evicted first
         assert prio_unref < prio_ref
 
     def test_cost_weighted_among_referenced(self):
@@ -102,7 +102,7 @@ class TestQueueAwareStrategyPriority:
         prio_old = strategy.get_priority(node_old)
         prio_new = strategy.get_priority(node_new)
 
-        # Same tier and cost, older access → lower priority
+        # Same tier and cost, older access -> lower priority
         assert prio_old < prio_new
 
     def test_zero_ref_with_none_key(self):
@@ -133,7 +133,7 @@ class TestQueueAwareStrategyPriority:
             _, idx = heapq.heappop(heap)
             eviction_order.append(idx)
 
-        # Expected: A(unref,old) → B(unref,new) → C(ref,low cost) → D(ref,high cost)
+        # Expected: A(unref,old) -> B(unref,new) -> C(ref,low cost) -> D(ref,high cost)
         assert eviction_order == [0, 1, 2, 3]
 
 # ---------------------------------------------------------------------------
@@ -173,7 +173,7 @@ class _NullAllocator:
 
     device = torch.device("cpu")
 
-    def free(self, indices):  # noqa: ARG002 — sglang interface
+    def free(self, indices):  # noqa: ARG002 -- sglang interface
         return None
 
 

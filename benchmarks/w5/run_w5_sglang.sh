@@ -1,5 +1,5 @@
 #!/bin/bash
-# W5 benchmark driver — singleton chat workload (LMSYS-Chat-1M, Gemma 2 27B-it).
+# W5 benchmark driver -- singleton chat workload (LMSYS-Chat-1M, Gemma 2 27B-it).
 # No-regression test for peek vs stock LPM.
 #
 # Cells (sharing structure: ~0% by construction)
@@ -204,7 +204,7 @@ run_one() {
 }
 
 # ------------------------------ main loop ---------------------------------
-# Policy-major: one server per policy, all (seed × cell × rate) benches
+# Policy-major: one server per policy, all (seed x cell x rate) benches
 # back-to-back with /flush_cache between.
 
 declare -A policy_plan
@@ -263,7 +263,7 @@ for policy in "${policy_order[@]}"; do
     if [[ "$server_up" == 0 || "$FULL_RESTART" == "1" ]]; then
       slog="$slog_base"
       if ! launch_server "$policy" "$slog"; then
-        echo "[w5]   LAUNCH FAILED for $policy — skipping remaining benches"
+        echo "[w5]   LAUNCH FAILED for $policy -- skipping remaining benches"
         server_up=0
         break
       fi
@@ -271,7 +271,7 @@ for policy in "${policy_order[@]}"; do
     fi
 
     if ! run_one "$cell" "$rate_label" "$policy" "$seed" "$out"; then
-      echo "[w5]   BENCH FAILED — restarting server"
+      echo "[w5]   BENCH FAILED -- restarting server"
       kill_server
       server_up=0
     fi

@@ -15,7 +15,7 @@
 """Query-count comparison: per-rid vs dual-walk cache matching.
 
 On heavy-sharing LLM workloads, the dual-walk visits each edge in peek's tree
-exactly once — independent of how many rids share that edge. A per-rid
+exactly once -- independent of how many rids share that edge. A per-rid
 approach visits the shared edge once per rid.
 
 This test measures the concrete query-count savings as sharing density grows.
@@ -77,7 +77,7 @@ def test_dualwalk_query_count_scales_with_edges_not_rids(
     members: int, capsys: pytest.CaptureFixture
 ) -> None:
     """Shared-prefix cluster: cache diverges inside the shared edge. One edge
-    → one query, regardless of cluster size."""
+    -> one query, regardless of cluster size."""
     reqs = _make_cluster_workload(
         n_clusters=1,
         members_per_cluster=members,
@@ -87,7 +87,7 @@ def test_dualwalk_query_count_scales_with_edges_not_rids(
     )
     tree = _build(reqs)
 
-    # Cache with nothing in it → diverges at depth 0 on the first edge.
+    # Cache with nothing in it -> diverges at depth 0 on the first edge.
     def empty_cache(_tokens):
         return 0
 
@@ -97,11 +97,11 @@ def test_dualwalk_query_count_scales_with_edges_not_rids(
     with capsys.disabled():
         print(
             f"\n  members={members:>3}  peek dualwalk calls={n_calls:>2}  "
-            f"per-rid baseline={per_rid_calls:>3}  savings={per_rid_calls - n_calls}×"
+            f"per-rid baseline={per_rid_calls:>3}  savings={per_rid_calls - n_calls}x"
         )
     assert n_hits == members
     # Dual-walk: the shared edge diverges at the first token. Count is bounded
-    # by peek's edge count at the boundary — just 1 edge visited.
+    # by peek's edge count at the boundary -- just 1 edge visited.
     assert n_calls == 1
 
 def test_dualwalk_vs_per_rid_realistic(capsys: pytest.CaptureFixture) -> None:
@@ -147,14 +147,14 @@ def test_dualwalk_vs_per_rid_realistic(capsys: pytest.CaptureFixture) -> None:
 
     with capsys.disabled():
         print(
-            f"\n  5 clusters × 20 members (1 warm, 4 cold): "
+            f"\n  5 clusters x 20 members (1 warm, 4 cold): "
             f"peek dualwalk={dw_calls[0]} calls  |  "
             f"per-rid={pr_calls} calls  |  "
-            f"{pr_calls / dw_calls[0]:.1f}× fewer"
+            f"{pr_calls / dw_calls[0]:.1f}x fewer"
         )
 
     assert len(dw_hits) == len(reqs)
     # Dual-walk should be significantly fewer calls. For 4 cold clusters (1 call
     # each) + 1 warm cluster (1 shared edge + 20 tail edges) ≈ 25 calls.
-    # Per-rid would be 100. Expect at least 3× savings.
+    # Per-rid would be 100. Expect at least 3x savings.
     assert dw_calls[0] * 3 <= pr_calls

@@ -2,7 +2,7 @@
 # Autonomous W3 reproduction chain: SGLang DP=1+DP=2, then vLLM DP=1+DP=2,
 # then compare_to_paper.py. Seed=42 only.
 #
-# Designed to run unattended in the background — no per-stage user input
+# Designed to run unattended in the background -- no per-stage user input
 # required. Logs:
 #   /tmp/w3_chain.log         (this script)
 #   /tmp/w3_sglang.log        (SGLang wrapper)

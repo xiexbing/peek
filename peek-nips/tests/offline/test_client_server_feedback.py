@@ -13,19 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Test the full client → server → client feedback loop.
+"""Test the full client -> server -> client feedback loop.
 
 Simulates Qwen 2.5 32B online serving: 100 groups, 1000 requests,
 Poisson arrivals.  The loop:
 
-  1. Client PeekDispatcher.submit() — inserts into trie, tags, sends.
+  1. Client PeekDispatcher.submit() -- inserts into trie, tags, sends.
   2. Server receives tagged request, schedules it.
   3. Server completes request, sends completion back.
-  4. Client PeekDispatcher.remove() — removes from trie, invalidates
+  4. Client PeekDispatcher.remove() -- removes from trie, invalidates
      cached ranks so the next submit() sees fresh group counts.
 
 Key invariant: at every point, the trie reflects ONLY in-flight
-(pending) requests — not completed ones and not future ones.
+(pending) requests -- not completed ones and not future ones.
 """
 
 import pytest
@@ -101,7 +101,7 @@ class SimulatedServer:
     On each cycle:
       - Accept up to BATCH_SIZE from the waiting queue.
       - Decrement TTL on running requests.
-      - Complete requests whose TTL reaches 0 → return to client.
+      - Complete requests whose TTL reaches 0 -> return to client.
     """
 
     def __init__(self, batch_size: int = BATCH_SIZE, prefill_cycles: int = PREFILL_CYCLES):
@@ -116,7 +116,7 @@ class SimulatedServer:
 
     def step(self) -> list[dict]:
         """Run one scheduling cycle.  Returns list of completed requests."""
-        # Admit from waiting → running
+        # Admit from waiting -> running
         to_admit = min(self.batch_size, len(self.waiting))
         for _ in range(to_admit):
             req = self.waiting.pop(0)
@@ -144,7 +144,7 @@ class SimulatedServer:
 # ---------------------------------------------------------------------------
 
 def run_feedback_simulation():
-    """Run the full client→server→client loop.
+    """Run the full client->server->client loop.
 
     Returns a list of snapshots, one per simulation cycle:
         {
@@ -253,7 +253,7 @@ def run_feedback_simulation():
 # ===================================================================
 
 class TestFeedbackLoop(unittest.TestCase):
-    """Full client→server→client feedback loop."""
+    """Full client->server->client feedback loop."""
 
     @classmethod
     def setUpClass(cls):
@@ -261,7 +261,7 @@ class TestFeedbackLoop(unittest.TestCase):
 
     def test_trie_equals_pending_at_every_cycle(self):
         """The trie prompt count must equal the number of in-flight
-        requests at every simulation cycle — never more, never less."""
+        requests at every simulation cycle -- never more, never less."""
         for s in self.snapshots:
             self.assertEqual(
                 s["trie_count"], s["pending_count"],
@@ -277,7 +277,7 @@ class TestFeedbackLoop(unittest.TestCase):
         self.assertEqual(final["pending_count"], 0)
 
     def test_all_requests_eventually_complete(self):
-        """Every request must pass through the loop: arrive → dispatch → complete → remove."""
+        """Every request must pass through the loop: arrive -> dispatch -> complete -> remove."""
         total_arrivals = sum(s["arrivals_this_cycle"] for s in self.snapshots)
         total_completions = sum(s["completions_this_cycle"] for s in self.snapshots)
         self.assertEqual(total_arrivals, N_REQUESTS,
@@ -350,7 +350,7 @@ class TestRankUpdateAfterRemoval(unittest.TestCase):
         # Trie should now only have group B
         self.assertEqual(dispatcher._trie._num_prompts, len(group_b_indices))
 
-        # Submit a new request for group B — should be rank 0 now
+        # Submit a new request for group B -- should be rank 0 now
         dispatched.clear()
         # Find one more group B request (or reuse a token_ids pattern)
         b_sample_idx = group_b_indices[0][0]
@@ -395,12 +395,12 @@ class TestRankUpdateAfterRemoval(unittest.TestCase):
                     submitted_other.append((i, dispatcher._next_idx - 1))
 
         # Largest has rank 0 (100 > 30)
-        # Now complete 80 from largest group → 20 pending
+        # Now complete 80 from largest group -> 20 pending
         for orig_idx, prompt_idx in submitted_largest[:80]:
             dispatcher.remove(reqs[orig_idx]["token_ids"], prompt_idx)
 
         # State: largest=20 pending, other=30 pending
-        # Submit new request for other group — should be rank 0
+        # Submit new request for other group -- should be rank 0
         dispatched.clear()
         other_sample = submitted_other[0][0]
         new_req = dict(reqs[other_sample])
@@ -429,7 +429,7 @@ class TestRankUpdateAfterRemoval(unittest.TestCase):
         for i in range(5):
             dispatcher.submit({"id": f"b-{i}", "token_ids": prefix_b + [i]})
 
-        # Remove all of A → A disappears from trie
+        # Remove all of A -> A disappears from trie
         for tids, pidx in a_indices:
             dispatcher.remove(tids, pidx)
 
@@ -439,7 +439,7 @@ class TestRankUpdateAfterRemoval(unittest.TestCase):
         dispatched.clear()
         dispatcher.submit({"id": "a-new", "token_ids": prefix_a + [99]})
 
-        # B has 5 pending, A has 1 → B should be rank 0, A rank 1
+        # B has 5 pending, A has 1 -> B should be rank 0, A rank 1
         a_rank = int(dispatched[0]["rid"].split(":")[1])
         self.assertEqual(a_rank, 1,
                          f"Returning group A (1 pending) should be rank 1, got {a_rank}")
@@ -456,7 +456,7 @@ class TestRemoveIdempotent(unittest.TestCase):
         tids = list(range(200))
         dispatcher.submit({"id": "r-0", "token_ids": tids})
         dispatcher.remove(tids, 0)
-        # Second remove — prompt_index 0 no longer in trie
+        # Second remove -- prompt_index 0 no longer in trie
         dispatcher.remove(tids, 0)  # should not crash
         self.assertEqual(dispatcher._trie._num_prompts, 0)
 

@@ -101,7 +101,7 @@ class PrefixTrie:
             self.insert(prompt.token_ids, idx)
 
     def dfs_group_keys(self, count_aware: bool = False) -> list[tuple[int, ...]]:
-        """Return leaf-node paths in DFS order — one key per group.
+        """Return leaf-node paths in DFS order -- one key per group.
 
         Each key is the tuple of tokens along the root-to-leaf path where
         at least one prompt index lives.  Cost: O(trie nodes), independent
@@ -109,7 +109,7 @@ class PrefixTrie:
 
         When *count_aware* is True, children at each node are visited in
         descending order of subtree count, so the largest prefix-sharing
-        groups appear first in the output — matching :meth:`dfs_order`
+        groups appear first in the output -- matching :meth:`dfs_order`
         with ``count_aware=True``.
         """
         keys: list[tuple[int, ...]] = []
@@ -122,7 +122,7 @@ class PrefixTrie:
             children = list(node.children.items())
             if count_aware and len(children) > 1:
                 # Sort ascending by count so highest-count child is pushed
-                # last → popped first → appears first in output.
+                # last -> popped first -> appears first in output.
                 children.sort(key=lambda x: x[1].count)
             else:
                 children.reverse()
@@ -151,7 +151,7 @@ class PrefixTrie:
             children = list(n.children.values())
             if count_aware and len(children) > 1:
                 # Sort ascending by count so highest-count child is pushed
-                # last → popped first → its subtree appears first in output.
+                # last -> popped first -> its subtree appears first in output.
                 children.sort(key=lambda c: c.count)
             else:
                 children.reverse()
@@ -198,7 +198,7 @@ class PrefixTrie:
                 depth_sum += real_depth * node.count
                 if node.count > max_group:
                     max_group = node.count
-                continue  # maximal group — don't recurse
+                continue  # maximal group -- don't recurse
             for child in node.children.values():
                 stack.append((child, depth + 1))
 

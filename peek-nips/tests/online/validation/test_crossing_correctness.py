@@ -22,7 +22,7 @@ ground-truth, under random and structured workloads:
   * snapshot_for_walk               vs independently-reconstructed tree
   * pending_demand / terminators_at vs paths dict filter (sanity restate)
 
-Purpose: catch bugs at the FFI boundary where Rust returns values to Python —
+Purpose: catch bugs at the FFI boundary where Rust returns values to Python --
 wrong type conversions, iterator ordering, dict key hashing, borrowed-vs-owned
 lifetimes, etc. None of these are covered by the Rust unit tests.
 """
@@ -135,7 +135,7 @@ def test_all_cluster_info_matches_per_rid():
 
 
 # ----------------------------------------------------------------------------
-# 4. snapshot_for_walk — reconstruct independently and compare topology.
+# 4. snapshot_for_walk -- reconstruct independently and compare topology.
 # ----------------------------------------------------------------------------
 
 def test_snapshot_round_trip_matches_tree_state():
@@ -221,7 +221,7 @@ def test_python_boundary_demand_matches_ground_truth():
 # ----------------------------------------------------------------------------
 
 def test_agent_sessions_workload_crossings():
-    """Build a tree shaped like Scenario B (50 agents × 3 sessions × 5 turns).
+    """Build a tree shaped like Scenario B (50 agents x 3 sessions x 5 turns).
     All four primitives must agree with naive re-derivation."""
     rng = random.Random(55555)
     pairs = []
@@ -237,7 +237,7 @@ def test_agent_sessions_workload_crossings():
                 history = toks
     tree = _build_tree(pairs)
 
-    # pending_demand / terminators_at — random queries against ground truth.
+    # pending_demand / terminators_at -- random queries against ground truth.
     by_rid = {r: toks for r, toks in pairs}
     for _ in range(200):
         pick = rng.choice(pairs)

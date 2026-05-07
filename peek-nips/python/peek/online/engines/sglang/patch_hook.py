@@ -21,13 +21,13 @@ with no code changes:
     PEEK_ONLINE_ENABLED=1 python -m sglang.launch_server ...     # peek active
     python -m sglang.launch_server ...                    # vanilla baseline
 
-Integration strategy (eviction-only — does not touch LPM scheduling):
+Integration strategy (eviction-only -- does not touch LPM scheduling):
 
 1. Monkey-patch `RadixCache.__init__` to replace its eviction_strategy with
    PeekDemandStrategy referencing a singleton PendingTree.
 2. Monkey-patch `Scheduler.process_input_requests` to sync the pending tree
    against `self.waiting_queue` on every scheduler iteration. This is a
-   diff-based sync — it tolerates any sglang mutation path (append, pop,
+   diff-based sync -- it tolerates any sglang mutation path (append, pop,
    list-comprehension reassignment) without needing to know about each one.
 
 The singleton PendingTree is fine because a single sglang scheduler process
@@ -53,11 +53,11 @@ _LEGACY_ANY = _LEGACY in ("1", "true", "yes", "on", "full")
 _LEGACY_FULL = _LEGACY == "full"
 
 # Per-mechanism toggles:
-#   PEEK_ONLINE_SCHEDULER=1        — peek's scheduler (LPM primary, in-batch pioneer/
+#   PEEK_ONLINE_SCHEDULER=1        -- peek's scheduler (LPM primary, in-batch pioneer/
 #                             sibling split, cluster-size pioneer ordering,
 #                             no >128 fallback)
-#   PEEK_ONLINE_EVICTION=1         — peek's queue-aware RadixCache eviction
-#   PEEK_ONLINE_PHASE_TRACKING=1   — dump per-rid {arrive_ts, pick_ts} to
+#   PEEK_ONLINE_EVICTION=1         -- peek's queue-aware RadixCache eviction
+#   PEEK_ONLINE_PHASE_TRACKING=1   -- dump per-rid {arrive_ts, pick_ts} to
 #                             /tmp/peek_phases.json. No scheduler/eviction
 #                             override; works for baseline LPM too so the
 #                             client can decouple queue_wait vs prefill+decode.
@@ -76,7 +76,7 @@ _SCHEDULER = (
 # scheduler path; Rust primitive `longest_match_along` remains for future
 # experiments. Re-enable via git if/when we build a different mechanism.
 
-# PEEK_ONLINE_KV_BUDGET=1 — admission control using peek's running-batch visibility.
+# PEEK_ONLINE_KV_BUDGET=1 -- admission control using peek's running-batch visibility.
 # Computes the KV budget the running batch has COMMITTED to exhaust (Σ of
 # per-req prefill_len + remaining_decode) and, when sorting the waiting
 # queue, defers pending rids whose admission would push commitment past
@@ -88,7 +88,7 @@ _KV_BUDGET = _flag("PEEK_ONLINE_KV_BUDGET")
 # Safety margin: don't spend the last X% of the budget. Leaves room for
 # running reqs whose max_new_tokens under-estimates actual decode length.
 _KV_BUDGET_MARGIN = float(os.environ.get("PEEK_ONLINE_KV_BUDGET_MARGIN", "0.05"))
-# PEEK_ONLINE_PREDICT_DECODE=1 — use peek's per-cluster EWMA of completed reqs'
+# PEEK_ONLINE_PREDICT_DECODE=1 -- use peek's per-cluster EWMA of completed reqs'
 # output length to estimate decode commitment, rather than the (loose)
 # `max_new_tokens` ceiling. Defaults on when KV-budget is on, since the
 # whole point of KV-budget is moot without a tighter estimate. Falls back
@@ -102,7 +102,7 @@ _PREDICT_DECODE = _flag("PEEK_ONLINE_PREDICT_DECODE") or (
 # tradeoff for our workloads (covers warm-up of ~30 reqs over 100 groups).
 _PREDICT_MIN_SAMPLES = int(os.environ.get("PEEK_ONLINE_PREDICT_MIN_SAMPLES", "3"))
 # Safety multiplier on predicted decode length: actual outputs vary even
-# within a cluster, so reserve 1.5× the EWMA to avoid under-reservation.
+# within a cluster, so reserve 1.5x the EWMA to avoid under-reservation.
 _PREDICT_SAFETY = float(os.environ.get("PEEK_ONLINE_PREDICT_SAFETY", "1.5"))
 _PHASE_TRACKING = (
     _flag("PEEK_ONLINE_PHASE_TRACKING") or _EVICTION or _SCHEDULER
@@ -121,27 +121,27 @@ _PHASE_DUMP_PATH_TEMPLATE = os.environ.get(
 _RANK_BY_SIZE = os.environ.get("PEEK_ONLINE_RANK_BY_SIZE", "1").lower() not in (
     "0", "false", "no", "off",
 )
-# PEEK_ONLINE_VALIDATE_LPM_ORDER=1 — on every scheduler tick where peek_lpm runs,
+# PEEK_ONLINE_VALIDATE_LPM_ORDER=1 -- on every scheduler tick where peek_lpm runs,
 # independently recompute the sort using sglang's own _sort_by_longest_prefix
 # on the same (queue state, deprio set) and record any mismatches to
 # /tmp/peek_lpm_order_diffs_{pid}.json. Ground-truth request-by-request sort
-# parity check. Adds one extra O(N log N) sort per tick — leave off for perf
+# parity check. Adds one extra O(N log N) sort per tick -- leave off for perf
 # runs, turn on for correctness validation.
 _VALIDATE_LPM_ORDER = _flag("PEEK_ONLINE_VALIDATE_LPM_ORDER")
 _LPM_ORDER_DIFF_PATH = os.environ.get(
     "PEEK_ONLINE_LPM_ORDER_DIFF_PATH", "/tmp/peek_lpm_order_diffs_{pid}.json"
 )
 
-# PEEK_ONLINE_LPM=1 — pure LPM-semantic scheduler backed by peek primitives.
+# PEEK_ONLINE_LPM=1 -- pure LPM-semantic scheduler backed by peek primitives.
 #
 # Produces byte-identical sort output to stock sglang LPM (single-scalar
 # `-main_hit`, deprioritized reqs banished to the end) but sources
-# everything from peek — no call into sglang's LPM functions:
+# everything from peek -- no call into sglang's LPM functions:
 #   - main_hit per rid comes from one dualwalk of the pending tree (instead
 #     of N separate radix match_prefix calls like stock LPM)
 #   - in-batch deprio uses peek's exact-threshold tokens[:K] claim set
 #     (same semantic as sglang's aux-tree check, no aux tree built)
-#   - the sort itself runs in Rust (`_core.lpm_sort_order`) — no per-compare
+#   - the sort itself runs in Rust (`_core.lpm_sort_order`) -- no per-compare
 #     Python callback overhead
 #   - cluster_info / cluster-size ranking is NOT consulted
 #
@@ -151,12 +151,12 @@ _LPM_ORDER_DIFF_PATH = os.environ.get(
 # than N match_prefix calls; if peek beats peek_lpm, it's because of
 # cluster-size ordering.
 _PEEK_LPM = _flag("PEEK_ONLINE_LPM")
-# PEEK_ONLINE_CLPM=1 — cluster-LPM. Keeps peek_lpm's LPM-exact main_hit
+# PEEK_ONLINE_CLPM=1 -- cluster-LPM. Keeps peek_lpm's LPM-exact main_hit
 # primary ordering, then applies a 4-key tiebreak ladder within each
 # arrival-time window bucket:
 #   (arrival_bucket, section_id, -main_hit, -req_score, -cluster_size, arrival_ns)
 # where section_id ∈ {0=warm, 1=pioneer, 2=sibling} and
-#   req_score = Σ (pending_count × edge_length) along rid's ancestor chain
+#   req_score = Σ (pending_count x edge_length) along rid's ancestor chain
 #              in peek's pending tree.
 # Implies PEEK_ONLINE_SCHEDULER=1. `PEEK_ONLINE_CLPM_WINDOW_MS` tunes the window (default
 # 500 ms). If `PEEK_ONLINE_CLPM_WINDOW_MS=0`, bucketing is disabled and the policy
@@ -164,19 +164,19 @@ _PEEK_LPM = _flag("PEEK_ONLINE_LPM")
 _PEEK_CLPM = _flag("PEEK_ONLINE_CLPM")
 _PEEK_CLPM_WINDOW_MS = int(os.environ.get("PEEK_ONLINE_CLPM_WINDOW_MS", "500"))
 # Age-weighted main_hit alpha: virtual main_hit tokens added per second of
-# wait. Default 400 → 5s-waited cold req ties a warm req at main_hit=2000.
+# wait. Default 400 -> 5s-waited cold req ties a warm req at main_hit=2000.
 # Set 0 to disable aging (falls back to raw main_hit + req_score tiebreaks).
 _PEEK_CLPM_AGE_ALPHA = float(os.environ.get("PEEK_ONLINE_CLPM_AGE_ALPHA", "0"))
-# Lane A (dense-cluster-preferring) share of admissions. 1.0 → pure W=0
-# ordering (cache-locality only); 0.0 → pure FCFS fairness; 0.7 default
+# Lane A (dense-cluster-preferring) share of admissions. 1.0 -> pure W=0
+# ordering (cache-locality only); 0.0 -> pure FCFS fairness; 0.7 default
 # gives big lanes 70% of admissions, small-cluster fairness lane 30%.
 _PEEK_CLPM_BIGLANE_SHARE = float(os.environ.get("PEEK_ONLINE_CLPM_BIGLANE_SHARE", "0.7"))
-# PEEK_ONLINE_CLPM_GROUP_MAJOR=1 → Lane A sorts by group (cluster_node) rather than
+# PEEK_ONLINE_CLPM_GROUP_MAJOR=1 -> Lane A sorts by group (cluster_node) rather than
 # per-req; within each section, all members of the top-scoring group admit
-# back-to-back. Group score = depth × size. Singletons are groups of score 0
+# back-to-back. Group score = depth x size. Singletons are groups of score 0
 # (admitted last within their section, arrival-ordered).
 _PEEK_CLPM_GROUP_MAJOR = _flag("PEEK_ONLINE_CLPM_GROUP_MAJOR")
-# PEEK_ONLINE_CLPM_DYNAMIC_LANE=1 → recompute Lane B share per tick from queue
+# PEEK_ONLINE_CLPM_DYNAMIC_LANE=1 -> recompute Lane B share per tick from queue
 # composition (singleton fraction) + oldest-singleton age, EMA-smoothed.
 # Overrides PEEK_ONLINE_CLPM_BIGLANE_SHARE.
 _PEEK_CLPM_DYNAMIC_LANE = _flag("PEEK_ONLINE_CLPM_DYNAMIC_LANE")
@@ -187,18 +187,18 @@ _PEEK_CLPM_SLO_BUDGET_S = float(os.environ.get("PEEK_ONLINE_CLPM_SLO_BUDGET_S", 
 # runs only for the top K reqs in the sorted queue. Reqs past K this tick
 # stay unpopulated; they'll be populated next tick when they rise to the top.
 # Savings matter only when queue size > K (the current scenario has
-# queue ~30-45 which is always < K, so expect no benefit there — lazy's
+# queue ~30-45 which is always < K, so expect no benefit there -- lazy's
 # big win is at queue > 128, where LPM falls back to FCFS but peek keeps
 # sorting).
 _LAZY_MATCH_PREFIX = _flag("PEEK_ONLINE_LAZY_MATCH_PREFIX")
 _LAZY_K = int(os.environ.get("PEEK_ONLINE_LAZY_K", "128"))
 
-# Any peek machinery active → need sync and install (phase tracking is
+# Any peek machinery active -> need sync and install (phase tracking is
 # cheap enough that we install the sync hook whenever it's requested, even
-# if no scheduler/eviction override is on — baseline LPM runs get phase
+# if no scheduler/eviction override is on -- baseline LPM runs get phase
 # data this way).
 _ENABLED = _EVICTION or _SCHEDULER or _PHASE_TRACKING
-# Any mechanism that patches the scheduler → need the scheduling hook.
+# Any mechanism that patches the scheduler -> need the scheduling hook.
 _SCHEDULE = _SCHEDULER
 
 _PROFILE = _flag("PEEK_ONLINE_PROFILE")
@@ -210,7 +210,7 @@ _VALIDATE = _flag("PEEK_ONLINE_VALIDATE")
 if _flag("PEEK_ONLINE_DECODE_AWARE"):
     import warnings
     warnings.warn(
-        "peek: PEEK_ONLINE_DECODE_AWARE=1 is ignored — decode-budget admission was "
+        "peek: PEEK_ONLINE_DECODE_AWARE=1 is ignored -- decode-budget admission was "
         "part of the removed scoring path. Remove from launch env.",
         stacklevel=2,
     )
@@ -218,7 +218,7 @@ _VALIDATE_PATH = os.environ.get(
     "PEEK_ONLINE_VALIDATE_PATH", "/tmp/peek_validate_{pid}.json"
 )
 
-# Validation counters — populated only when PEEK_ONLINE_VALIDATE=1. Each key tracks a
+# Validation counters -- populated only when PEEK_ONLINE_VALIDATE=1. Each key tracks a
 # distinct correctness violation category. Zero across the board = peek's view
 # of the waiting queue and cache matches sglang's actual state.
 _vstats: dict = {
@@ -248,13 +248,13 @@ def _install() -> None:
     peek_tree = PendingTree()
 
     # Per-rid phase timings. Keyed by rid_str (same as server's req.rid, which
-    # the client sees in the OpenAI response `id` field → direct join).
+    # the client sees in the OpenAI response `id` field -> direct join).
     # arrive_ts: wall-clock when the rid first enters the waiting queue.
     # pick_ts:   wall-clock when the scheduler pulls it out of waiting
-    #            (waiting_queue diff transitions rid from present → absent).
+    #            (waiting_queue diff transitions rid from present -> absent).
     # Using time.time() so the client can match against its own wall-clock.
     _phase_timings: dict = {}
-    # string rid → u64 interned rid (peek speaks u64, sglang uses strings)
+    # string rid -> u64 interned rid (peek speaks u64, sglang uses strings)
     rid_interner: dict[str, int] = {}
     _counter = [0]
 
@@ -286,7 +286,7 @@ def _install() -> None:
         RadixCache.__init__ = _patched_radix_init
 
         # Per-victim eviction trace: log first N evictions' chosen victim with
-        # its (demand×depth, path_len, access_time). Lets us verify that heap
+        # its (demandxdepth, path_len, access_time). Lets us verify that heap
         # pops actually follow the policy (low priority first). Gated by
         # PEEK_ONLINE_EVICTION_DEBUG=1 so default runs don't pay the overhead.
         if _flag("PEEK_ONLINE_EVICTION_DEBUG"):
@@ -350,7 +350,7 @@ def _install() -> None:
 
             RadixCache.evict = _patched_evict
             _log.warning(
-                "peek: RadixCache.evict patched for per-victim trace → %s (up to %d events)",
+                "peek: RadixCache.evict patched for per-victim trace -> %s (up to %d events)",
                 _trace_path, _trace_max,
             )
 
@@ -372,7 +372,7 @@ def _install() -> None:
         when arrivals/picks happen."""
         t0 = _time.perf_counter_ns() if _PROFILE else 0
         wq = scheduler.waiting_queue
-        # Fast path: identical set of rids → nothing changed.
+        # Fast path: identical set of rids -> nothing changed.
         if len(wq) == len(_last_rids):
             current_strs = {req.rid for req in wq}
             if current_strs == _last_rids:
@@ -403,7 +403,7 @@ def _install() -> None:
                     _prof["insert_calls"] += 1
                     _prof["insert_ns"] += _time.perf_counter_ns() - t1
                 _seen_this_session.add(rid_int)
-                # Phase: new rid → record arrive_ts (first time observed in
+                # Phase: new rid -> record arrive_ts (first time observed in
                 # the waiting queue via this scheduler's sync).
                 if _PHASE_TRACKING:
                     _phase_timings[req.rid] = {"arrive_ts": now_wall}
@@ -417,7 +417,7 @@ def _install() -> None:
                     _prof["discard_ns"] += _time.perf_counter_ns() - t1
                 _seen_this_session.discard(rid_int)
         # Phase: rids that were in last_rids but are no longer in wq were
-        # picked by the scheduler (pulled from waiting → running batch) or
+        # picked by the scheduler (pulled from waiting -> running batch) or
         # aborted. Record pick_ts. Works off the string rid set directly.
         if _PHASE_TRACKING:
             for rid_str in _last_rids - current_strs:
@@ -439,7 +439,7 @@ def _install() -> None:
     def _validate_sync(scheduler) -> None:
         """After _sync, verify the invariant: peek.tree tracks EXACTLY the rids
         in scheduler.waiting_queue, with matching tokens. Counts mismatches by
-        category and logs the first occurrence. Cheap — one pass over queue,
+        category and logs the first occurrence. Cheap -- one pass over queue,
         plus one peek.tokens() lookup per rid."""
         wq = scheduler.waiting_queue
         wq_ints = set()
@@ -473,7 +473,7 @@ def _install() -> None:
             if not _vstats["first_violation_logged"]:
                 _vstats["first_violation_logged"] = True
                 _log.warning(
-                    "peek VALIDATE: first sync violation — missing=%d extra=%d token_mm=%d "
+                    "peek VALIDATE: first sync violation -- missing=%d extra=%d token_mm=%d "
                     "wq_size=%d peek_tracked=%d",
                     missing, extra, token_mismatches, len(wq), len(_seen_this_session),
                 )
@@ -557,7 +557,7 @@ def _install() -> None:
                             tuple(rr.origin_input_ids),
                             out_len,
                         )
-                # Reqs that disappeared from the running batch → finished.
+                # Reqs that disappeared from the running batch -> finished.
                 for rid_str in list(_running_seen.keys()):
                     if rid_str not in cur_rids:
                         tokens_tuple, last_out = _running_seen.pop(rid_str)
@@ -576,7 +576,7 @@ def _install() -> None:
                     _prof["calc_priority_ns"] += _time.perf_counter_ns() - tcp
                 return _orig_calc_priority(self, waiting_queue, running_batch)
 
-            # Stock sglang LPM bypasses to FCFS when the queue is long — both
+            # Stock sglang LPM bypasses to FCFS when the queue is long -- both
             # because scheduler overhead grows super-linearly AND because LPM's
             # signal quality degrades at long queues (most reqs tied at
             # main_hit=0, cache churn outpaces admission decisions). peek_lpm
@@ -630,7 +630,7 @@ def _install() -> None:
             # (downstream admission needs device indices, not just lengths),
             # but the dualwalk result is the primary signal for sorting.
             #
-            # PEEK_ONLINE_LPM_SKIP_DUALWALK=1 — ablation flag: skip the dualwalk and
+            # PEEK_ONLINE_LPM_SKIP_DUALWALK=1 -- ablation flag: skip the dualwalk and
             # fall back to len(r.prefix_indices) as the sort key (same signal
             # stock LPM uses). Diagnoses whether dualwalk's pure-Python
             # _cache_match callback is the overhead culprit.
@@ -662,7 +662,7 @@ def _install() -> None:
                     return consumed
                 try:
                     # min_pending_count=1 walks every edge exactly (LPM-faithful
-                    # — every req's prefix length is computed as if queried
+                    # -- every req's prefix length is computed as if queried
                     # individually, no approximation).
                     dualwalk_hits = peek_tree.compute_main_hits(_cache_match, 1)
                 except Exception as _e:
@@ -672,7 +672,7 @@ def _install() -> None:
             # Peek-native LPM sort: LPM-faithful order (-main_hit, is_depr,
             # rid) driven by dualwalk; in-batch deprio via peek cluster_info.
             # With PEEK_ONLINE_LPM=1, use single-scalar key that's byte-identical
-            # to sglang's _sort_by_longest_prefix — the whole sort runs in
+            # to sglang's _sort_by_longest_prefix -- the whole sort runs in
             # Rust via _core.lpm_sort_order.
             if _VALIDATE_LPM_ORDER and _PEEK_LPM:
                 _validation_queue_snapshot = list(waiting_queue)
@@ -794,7 +794,7 @@ def _install() -> None:
             if _KV_BUDGET and running_batch is not None:
                 # Helper: estimate remaining decode tokens for one req.
                 # When PREDICT_DECODE is on, query peek's per-cluster EWMA
-                # (× safety) and clamp by max_new_tokens. Otherwise fall
+                # (x safety) and clamp by max_new_tokens. Otherwise fall
                 # back to (max_new_tokens - already-decoded), which is
                 # sglang's worst-case projection.
                 def _remaining_decode(req, already_out: int) -> int:
@@ -843,7 +843,7 @@ def _install() -> None:
                         commit = prefill_cost + decode_cost
                         if cum_commit + commit <= remaining_budget or not admitted:
                             # Always allow at least one admission even if budget
-                            # is tight — prevents deadlock when every req exceeds
+                            # is tight -- prevents deadlock when every req exceeds
                             # the budget alone. Subsequent reqs gated normally.
                             admitted.append(r)
                             cum_commit += commit
@@ -869,7 +869,7 @@ def _install() -> None:
             _RANK_BY_SIZE,
         )
 
-    # Periodic phase-timings dump — always-on when _PHASE_TRACKING is active.
+    # Periodic phase-timings dump -- always-on when _PHASE_TRACKING is active.
     # Written to a fixed path (no pid suffix) so the client can pick it up
     # without needing to know the server pid. The dump is idempotent: the
     # client reads it once at end-of-run; concurrent-write races during
@@ -885,7 +885,7 @@ def _install() -> None:
             while True:
                 # Only write if we actually have data. sglang's tokenizer
                 # manager / detokenizer / ipc subprocesses also import us
-                # but never populate _phase_timings — skipping them avoids
+                # but never populate _phase_timings -- skipping them avoids
                 # stomping on the scheduler process's file.
                 if _phase_timings:
                     try:
@@ -902,7 +902,7 @@ def _install() -> None:
             _phase_path,
         )
 
-    # Periodic validation dump — same pattern as profile: the scheduler
+    # Periodic validation dump -- same pattern as profile: the scheduler
     # subprocess may be killed hard, so write validation counters to a known
     # file every 2 seconds from a background thread.
     if _VALIDATE:
@@ -923,7 +923,7 @@ def _install() -> None:
         _vt.start()
         _log.warning("peek: validation dump thread started; path=%s", _vpath)
 
-    # Periodic profile dump — sglang's scheduler subprocess may be killed
+    # Periodic profile dump -- sglang's scheduler subprocess may be killed
     # hard so atexit is unreliable. Instead, write stats to a known file
     # every 2 seconds from a background thread.
     if _PROFILE:

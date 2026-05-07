@@ -2,7 +2,7 @@
 """Agent-serving benchmark driver against a running sglang server.
 
 Simulates N concurrent chat sessions, each with:
-  * a system prompt (one of K "agent types" — shared by ~ sessions/K users)
+  * a system prompt (one of K "agent types" -- shared by ~ sessions/K users)
   * a target number of turns
   * response-conditional turn timing (user_think_time between turns)
 

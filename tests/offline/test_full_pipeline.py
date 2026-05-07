@@ -15,14 +15,14 @@
 
 """Full pipeline correctness test: Qwen 2.5 32B, 100 groups, 1000 requests.
 
-End-to-end verification of every component in Peek's client→server→client
+End-to-end verification of every component in Peek's client->server->client
 loop under Poisson arrivals:
 
   1. Client DFS trie: incremental build, add, remove
   2. Client re-rank: pending counts sort on every submit/remove
-  3. Client→Server push: CacheStateStore carries pending counts
+  3. Client->Server push: CacheStateStore carries pending counts
   4. Server tag parsing: groups by hash, reads client pending
-  5. Server→Client feedback: completion triggers remove + re-rank
+  5. Server->Client feedback: completion triggers remove + re-rank
   6. Trie drains to zero after all completions
 
 Uses the same SimulatedServer from test_client_server_feedback.py
@@ -43,7 +43,7 @@ from peek.offline.reorder import PeekDispatcher
 
 
 # ---------------------------------------------------------------------------
-# Workload — Qwen 2.5 32B
+# Workload -- Qwen 2.5 32B
 # ---------------------------------------------------------------------------
 
 NUM_GROUPS = 100
@@ -133,7 +133,7 @@ class SimulatedServer:
 # ---------------------------------------------------------------------------
 
 def run_full_pipeline():
-    """Run full client→server→client pipeline.
+    """Run full client->server->client pipeline.
 
     Returns a rich result dict with per-cycle snapshots and aggregate stats.
     """
@@ -188,7 +188,7 @@ def run_full_pipeline():
             if rid in id_to_prompt_idx:
                 dispatcher.remove(id_to_token_ids.pop(rid), id_to_prompt_idx.pop(rid))
 
-        # --- Read server→client and client→server state ---
+        # --- Read server->client and client->server state ---
         client_pending_snapshot = store.get_client_pending()
 
         snapshots.append({
@@ -328,7 +328,7 @@ class TestFullPipeline(unittest.TestCase):
     # --- 5. Rank correctness ---
 
     def test_rank_reflects_pending_count_at_tag_time(self):
-        """Ranks reflect pending count at the time of tagging — not
+        """Ranks reflect pending count at the time of tagging -- not
         total historical count.  Verify using the first 200 dispatched
         requests (before any completions, so pending == cumulative)."""
         dispatched = self.result["all_dispatched"][:200]
@@ -364,7 +364,7 @@ class TestFullPipeline(unittest.TestCase):
         prefix_a = list(range(200))
         prefix_b = list(range(200, 400))
 
-        # A=10, B=9 → A rank=0, B rank=1
+        # A=10, B=9 -> A rank=0, B rank=1
         for i in range(10):
             d.submit({"id": f"a-{i}", "token_ids": prefix_a + [i]})
         for i in range(9):
@@ -375,7 +375,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertEqual(rank_a, 0)
         self.assertEqual(rank_b, 1)
 
-        # B gets 3 more → B=12, A=10 → B should be rank 0
+        # B gets 3 more -> B=12, A=10 -> B should be rank 0
         dispatched.clear()
         for i in range(3):
             d.submit({"id": f"b-extra-{i}", "token_ids": prefix_b + [100 + i]})

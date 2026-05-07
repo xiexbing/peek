@@ -6,7 +6,7 @@ patch_hook accept those names. SGLang's ``peek.online.eviction`` module
 historically used the prefixed names ``demand_cluster`` / ``demand_recency``
 / ``demand_decay`` and would silently fall through its dispatch
 ``elif`` chain to ``priority = demand`` (i.e., effectively *plain* mode)
-when supplied with the documented un-prefixed name — meaning users
+when supplied with the documented un-prefixed name -- meaning users
 following the README ran a different policy than the paper claims.
 
 These tests pin down the canonical behavior:
@@ -74,14 +74,14 @@ def test_unknown_falls_back_to_plain_with_warning():
 
 
 def test_default_is_plain():
-    """No env var → default ``plain``."""
+    """No env var -> default ``plain``."""
     ev = _reload_with_mode(None)
     assert ev._EVICTION_MODE == "plain"
 
 
 def test_get_priority_dispatch_reaches_cluster_branch():
     """End-to-end: with mode=cluster, get_priority must produce the
-    cluster-formula priority (demand × (1 + n_levels)), not the plain
+    cluster-formula priority (demand x (1 + n_levels)), not the plain
     ``demand`` value. The clearest distinguishing case is a node with a
     nonzero ancestor depth, where the multiplier kicks in.
 
@@ -89,8 +89,8 @@ def test_get_priority_dispatch_reaches_cluster_branch():
     n_levels, we drive both via real PendingTree state."""
     from peek import PendingTree
 
-    # _max_ancestor_demand reads node.key.token_ids — sglang's RadixKey
-    # shape — to recover the ancestor's prefix path and look up demand.
+    # _max_ancestor_demand reads node.key.token_ids -- sglang's RadixKey
+    # shape -- to recover the ancestor's prefix path and look up demand.
     class FakeKey:
         def __init__(self, tokens):
             self.token_ids = list(tokens)
@@ -113,7 +113,7 @@ def test_get_priority_dispatch_reaches_cluster_branch():
 
     def build_strategy(mode: str):
         ev = _reload_with_mode(mode)
-        # rids 1 and 2 share the [1,2,3] prefix → pending_demand for any
+        # rids 1 and 2 share the [1,2,3] prefix -> pending_demand for any
         # cache path that's a prefix of either rid's tokens is ≥ 1.
         t = PendingTree()
         t.insert(1, [1, 2, 3, 99])
@@ -121,7 +121,7 @@ def test_get_priority_dispatch_reaches_cluster_branch():
         return ev.PeekDemandStrategy(t)
 
     root = FakeRoot()
-    # Cache leaf carrying tokens [1,2,3] — exact prefix of both pending rids.
+    # Cache leaf carrying tokens [1,2,3] -- exact prefix of both pending rids.
     leaf = FakeNode(root, [1, 2, 3], 3)
 
     plain_prio, _ = build_strategy("plain").get_priority(leaf)

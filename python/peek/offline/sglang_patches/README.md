@@ -11,8 +11,8 @@ KV cache blocks referenced by requests in the waiting queue from eviction.
 
 ### Two-tier eviction model
 
-- **Tier 1 (probationary):** Unreferenced blocks — evicted first, LRU order
-- **Tier 2 (protected):** Blocks referenced by waiting-queue requests — evicted
+- **Tier 1 (probationary):** Unreferenced blocks -- evicted first, LRU order
+- **Tier 2 (protected):** Blocks referenced by waiting-queue requests -- evicted
   last, ordered by `queue_ref_count * num_tokens` (cheapest-to-recompute first)
 
 ## Files modified (4 files)

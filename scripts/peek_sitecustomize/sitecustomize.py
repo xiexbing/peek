@@ -16,7 +16,7 @@
 
 vllm v1 spawns its EngineCore in a child Python process via
 multiprocessing.get_context("spawn"). Monkey-patches applied in the parent
-do NOT inherit into spawn children — they're fresh Python interpreters.
+do NOT inherit into spawn children -- they're fresh Python interpreters.
 A `sitecustomize.py` on the child's PYTHONPATH is imported automatically by
 the site machinery before any user code, so it's the cleanest injection
 point for both parent and child.

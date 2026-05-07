@@ -258,7 +258,7 @@ impl Tree {
         while node != ROOT {
             let n = self.node(node);
             // Keep nodes that hold decode-prediction history even if they
-            // have no live terminators/children — they carry per-cluster
+            // have no live terminators/children -- they carry per-cluster
             // EWMA used at admission time to estimate decode length.
             if n.terminators.is_empty()
                 && n.children.is_empty()
@@ -271,7 +271,7 @@ impl Tree {
                 node = parent;
                 continue;
             }
-            // Try merging: node has no terminators and exactly one child → fuse edges.
+            // Try merging: node has no terminators and exactly one child -> fuse edges.
             // Skip merging if either node has decode history (merging would lose the
             // boundary between two distinct cluster prefixes).
             if n.terminators.is_empty() && n.children.len() == 1 && node != ROOT && n.decode_samples == 0 {
@@ -291,7 +291,7 @@ impl Tree {
                 self.free(child);
                 // Continue upward: the merged node may itself now be mergeable.
                 // But it has terminators/children from child, so further merging
-                // is unlikely; stop regardless — parent is unaffected by this merge.
+                // is unlikely; stop regardless -- parent is unaffected by this merge.
                 return;
             }
             return;
@@ -354,7 +354,7 @@ impl Tree {
                     node = child;
                     continue;
                 }
-                // Tokens diverge from this edge mid-way → split so a terminal
+                // Tokens diverge from this edge mid-way -> split so a terminal
                 // node sits at the divergence point, then either follow into
                 // the new branch or create a fresh leaf.
                 self.split_edge(child, common);
@@ -373,7 +373,7 @@ impl Tree {
                 consumed += rem_len;
                 break;
             }
-            // No matching child → create a fresh leaf for remaining tokens.
+            // No matching child -> create a fresh leaf for remaining tokens.
             let remainder = tokens[consumed..].to_vec();
             let rem_len = remainder.len();
             let first = remainder[0];
@@ -398,12 +398,12 @@ impl Tree {
     ///
     /// Walks `tokens` into the tree and returns the EWMA recorded at the
     /// deepest node with at least `min_samples` observations. Walks from
-    /// deep → shallow so the most specific cluster wins; falls back to
+    /// deep -> shallow so the most specific cluster wins; falls back to
     /// shallower ancestors when deeper nodes haven't seen enough completions.
     ///
     /// Returns `Some((ewma, samples))` on hit, `None` if even root has no
     /// qualifying ancestor. Mid-edge queries inherit the deeper node's stats
-    /// — any node at or below the query position shares the same path prefix.
+    /// -- any node at or below the query position shares the same path prefix.
     pub fn predict_decode(&self, tokens: &[Token], min_samples: u32) -> Option<(f32, u32)> {
         // Walk into the tree, remembering every node whose decode_samples
         // meets the threshold. The deepest such node is the prediction.
@@ -446,7 +446,7 @@ impl Tree {
 
     /// Fast "is there any sharing among pending rids?" check. O(#root-children).
     ///
-    /// When this returns false, every pending rid is a singleton — peek's
+    /// When this returns false, every pending rid is a singleton -- peek's
     /// dualwalk / cluster_info can't produce any main_hit better than what
     /// a per-rid cache query would get. Callers should bypass peek scheduling
     /// and fall back to stock LPM in that case.
@@ -458,7 +458,7 @@ impl Tree {
     }
 
     /// Number of pending rids that pass through a root child with
-    /// `pending_count >= 2` — i.e., rids that share at least their first
+    /// `pending_count >= 2` -- i.e., rids that share at least their first
     /// edge with some other pending rid. O(#root-children).
     ///
     /// `shared + singleton == total pending` (by construction of the tree).
@@ -497,7 +497,7 @@ impl Tree {
         &self.free
     }
 
-    /// Count pending rids whose token sequence ENDS EXACTLY at `path` —
+    /// Count pending rids whose token sequence ENDS EXACTLY at `path` --
     /// i.e., terminators at the peek node sitting at this path.
     ///
     /// Returns 0 when `path` ends mid-edge in the peek tree (no node sits at
@@ -505,8 +505,8 @@ impl Tree {
     /// with `pending_demand`, which counts the whole subtree.
     ///
     /// Motivation: used as the eviction-priority signal for cache *leaf*
-    /// nodes, so a shared-prefix node is not protected N× just because N
-    /// sessions fan out beneath it — each specific cache path gets weighted
+    /// nodes, so a shared-prefix node is not protected Nx just because N
+    /// sessions fan out beneath it -- each specific cache path gets weighted
     /// only by the number of pending rids whose exact tokens need it.
     pub fn terminators_at(&self, path: &[Token]) -> u32 {
         let d = self.descend(path);
@@ -514,7 +514,7 @@ impl Tree {
             return 0;
         }
         if d.end_offset != self.node(d.end_node).edge.len() {
-            // Path landed mid-edge → no peek node exists at this exact depth.
+            // Path landed mid-edge -> no peek node exists at this exact depth.
             return 0;
         }
         self.node(d.end_node).terminators.len() as u32
@@ -523,7 +523,7 @@ impl Tree {
     /// Count pending rids whose token sequence begins with `path`.
     ///
     /// Walks `path` through the tree, consuming it along edges. If `path`
-    /// diverges from the tree before it's exhausted, returns 0 — no pending
+    /// diverges from the tree before it's exhausted, returns 0 -- no pending
     /// rid has this exact prefix. Otherwise returns the `pending_count` of
     /// the deepest reached node, which equals the number of terminators in
     /// its subtree (i.e., pending rids whose tokens start with `path`).
@@ -551,7 +551,7 @@ impl Tree {
                 return self.node(child).pending_count;
             }
             if common < edge.len() {
-                // Diverged mid-edge — no rid has this prefix.
+                // Diverged mid-edge -- no rid has this prefix.
                 return 0;
             }
             node = child;
@@ -622,7 +622,7 @@ impl Tree {
 
     /// For a pending rid whose path is `tokens`, find the deepest ancestor of
     /// its terminator node with `pending_count >= 2`. That ancestor is the
-    /// "cluster node" for `rid` — the finest-grained shared-prefix group it
+    /// "cluster node" for `rid` -- the finest-grained shared-prefix group it
     /// belongs to.
     ///
     /// Returns `(cluster_node_id, cluster_depth, cluster_size)`:
@@ -634,7 +634,7 @@ impl Tree {
     ///     pending rids passing through it).
     ///
     /// Returns `None` if `rid` isn't present at `tokens`' terminator, or if
-    /// the rid is a singleton (no ancestor — and not the terminator itself —
+    /// the rid is a singleton (no ancestor -- and not the terminator itself --
     /// has `pending_count >= 2`).
     pub fn cluster_info(
         &self,
@@ -725,7 +725,7 @@ mod tests {
         assert!(t.node(d.end_node).terminators.contains(&1));
         // And the tree should have shrunk.
         assert!(t.len() < before);
-        // Root → one child with edge [1,2,3,4].
+        // Root -> one child with edge [1,2,3,4].
         assert_eq!(t.node(ROOT).children.len(), 1);
         let (_, &c) = t.node(ROOT).children.iter().next().unwrap();
         assert_eq!(t.node(c).edge, toks(&[1, 2, 3, 4]));
@@ -786,7 +786,7 @@ mod tests {
     fn pending_demand_path_longer_than_any_rid() {
         let mut t = Tree::new();
         t.insert(1, &toks(&[1, 2, 3]));
-        // Path [1,2,3,4] extends past rid 1's tokens — no rid has this prefix.
+        // Path [1,2,3,4] extends past rid 1's tokens -- no rid has this prefix.
         assert_eq!(t.pending_demand(&toks(&[1, 2, 3, 4])), 0);
     }
 
@@ -796,7 +796,7 @@ mod tests {
         t.insert(1, &toks(&[1, 2, 3, 4, 5]));
         t.insert(2, &toks(&[1, 2, 3, 4, 6]));
         // Query mid-edge: [1,2,3] lands inside the shared edge [1,2,3,4].
-        // Both rids extend this path → demand = 2.
+        // Both rids extend this path -> demand = 2.
         assert_eq!(t.pending_demand(&toks(&[1, 2, 3])), 2);
     }
 
@@ -811,12 +811,12 @@ mod tests {
         // Each leaf has exactly one terminator.
         assert_eq!(t.terminators_at(&toks(&[1, 2, 3])), 1);
         assert_eq!(t.terminators_at(&toks(&[1, 2, 9])), 1);
-        // Mid-edge path has no node sitting there → 0.
+        // Mid-edge path has no node sitting there -> 0.
         assert_eq!(t.terminators_at(&toks(&[1])), 0);
         // Duplicate terminators get counted.
         t.insert(3, &toks(&[1, 2, 3]));
         assert_eq!(t.terminators_at(&toks(&[1, 2, 3])), 2);
-        // Diverged / too-long paths → 0.
+        // Diverged / too-long paths -> 0.
         assert_eq!(t.terminators_at(&toks(&[1, 2, 3, 4])), 0);
         assert_eq!(t.terminators_at(&toks(&[7, 7])), 0);
     }
@@ -882,7 +882,7 @@ mod tests {
         assert_eq!(t.shared_rid_count(), 0);
         assert_eq!(t.singleton_rid_count(), 3);
 
-        // case 2: identical first token, diverge later — that IS sharing
+        // case 2: identical first token, diverge later -- that IS sharing
         let mut t = Tree::new();
         t.insert(1, &toks(&[10, 20, 30]));
         t.insert(2, &toks(&[10, 40, 50]));
@@ -890,7 +890,7 @@ mod tests {
         assert_eq!(t.shared_rid_count(), 2);
         assert_eq!(t.singleton_rid_count(), 0);
 
-        // case 3: mixed — one cluster of 3, one singleton with a different first token
+        // case 3: mixed -- one cluster of 3, one singleton with a different first token
         let mut t = Tree::new();
         t.insert(1, &toks(&[10, 20]));
         t.insert(2, &toks(&[10, 30]));
@@ -920,13 +920,13 @@ mod tests {
 
     // ==========================================================================
     // Invariant-checked stress tests. Random insert/remove workloads that keep
-    // a ground-truth set of (rid → tokens) outside the tree and re-derive every
+    // a ground-truth set of (rid -> tokens) outside the tree and re-derive every
     // queryable quantity from scratch, asserting parity with the tree.
     // ==========================================================================
 
     use std::collections::HashMap as StdHashMap;
 
-    /// Deterministic tiny xorshift RNG — no dev-deps needed.
+    /// Deterministic tiny xorshift RNG -- no dev-deps needed.
     struct XorShift(u64);
     impl XorShift {
         fn new(seed: u64) -> Self { Self(seed.max(1)) }
@@ -1008,7 +1008,7 @@ mod tests {
                 _ => {
                     // Query pending_demand / terminators_at against ground truth.
                     // Note: empty-path queries are intentionally not supported by
-                    // pending_demand — ROOT's pending_count is not maintained as
+                    // pending_demand -- ROOT's pending_count is not maintained as
                     // an optimization (callers skip empty paths explicitly). We
                     // therefore restrict random queries to nonempty paths.
                     let q = random_tokens(&mut rng, 1, 6, 5);
@@ -1030,7 +1030,7 @@ mod tests {
         }
         // After all ops, final sweep.
         assert_tree_invariants(&t, &ground);
-        // Drain everything — check GC brings tree back toward empty.
+        // Drain everything -- check GC brings tree back toward empty.
         let keys: Vec<Rid> = ground.keys().copied().collect();
         for k in keys {
             let toks = ground.remove(&k).unwrap();
@@ -1045,7 +1045,7 @@ mod tests {
 
     #[test]
     fn stress_long_paths_shared_prefixes() {
-        // Agent-sessions-like: 10 agents × 50 sessions × up-to-5 turns.
+        // Agent-sessions-like: 10 agents x 50 sessions x up-to-5 turns.
         // SP is 50 tokens; per-session history accumulates.
         let mut t = Tree::new();
         let mut ground: StdHashMap<Rid, Vec<Token>> = StdHashMap::new();

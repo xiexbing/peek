@@ -1,11 +1,11 @@
-# W3 — Multi-GPU Llama-3.1-70B (DP=1, DP=2)
+# W3 -- Multi-GPU Llama-3.1-70B (DP=1, DP=2)
 
 > Paper §4.3. Scales W1 (cell C, chat-like / admission-bound) and W2
 > (cell B, RAG-like / decode-bound) to `meta-llama/Llama-3.1-70B-Instruct`
 > at TP=2, with two data-parallel topologies:
 >
-> - **DP=1** — single TP=2 replica (2×H100)
-> - **DP=2** — two TP=2 replicas behind sglang's prefix-aware router (4×H100)
+> - **DP=1** -- single TP=2 replica (2xH100)
+> - **DP=2** -- two TP=2 replicas behind sglang's prefix-aware router (4xH100)
 
 ## Cells
 
@@ -21,11 +21,11 @@ W3 are model size and parallelism.
 
 | Topology       | SGLang                                                  | vLLM                          |
 | -------------- | ------------------------------------------------------- | ----------------------------- |
-| **DP=1** (2 GPUs) | `MODEL=meta-llama/Llama-3.1-70B-Instruct TP=2 bash benchmarks/w1/run_w1_sglang.sh` (cell C) <br>or `… benchmarks/w2/run_w2_sglang.sh` (cell B) | `bash run_w3_vllm.sh` |
+| **DP=1** (2 GPUs) | `MODEL=meta-llama/Llama-3.1-70B-Instruct TP=2 bash benchmarks/w1/run_w1_sglang.sh` (cell C) <br>or `... benchmarks/w2/run_w2_sglang.sh` (cell B) | `bash run_w3_vllm.sh` |
 | **DP=2** (4 GPUs) | `bash run_w3_sglang_dp2.sh`                             | `bash run_w3_vllm_dp2.sh`     |
 
 > The DP=1 SGLang case is reachable directly through the W1/W2 drivers
-> by overriding `MODEL` and `TP` — both scripts honor those env vars.
+> by overriding `MODEL` and `TP` -- both scripts honor those env vars.
 > No dedicated `run_w3_sglang.sh` is shipped because the workload is
 > structurally identical to W1/W2 with two parameters changed.
 
@@ -39,22 +39,22 @@ stock baseline + the full PEEK config:
 
 ## Hardware
 
-- DP=1: 2×H100 80GB
-- DP=2: 4×H100 80GB
+- DP=1: 2xH100 80GB
+- DP=2: 4xH100 80GB
 
 Set `mem_fraction_static=0.88` (SGLang) / `gpu_memory_utilization=0.9` (vLLM).
 
 ## Seeds
 
-42, 142, 242 (paper default). Override via `SEEDS=…`.
+42, 142, 242 (paper default). Override via `SEEDS=...`.
 
 ## Server-ready timeouts
 
-W3 loads Llama-3.1-70B-Instruct, which takes ~5–25 min to come up depending
+W3 loads Llama-3.1-70B-Instruct, which takes ~5-25 min to come up depending
 on disk speed (SSD vs network FS). The drivers wait `3600s` (1 hour) for the
 server to respond on `/health` before giving up; on faster hosts this is
 overshoot but harmless.
 
-- `run_w3_sglang.sh` — `SERVER_READY_TIMEOUT_S=3600` env (override to lower)
-- `run_w3_sglang_dp2.sh`, `run_w3_vllm.sh`, `run_w3_vllm_dp2.sh` — `3600s`
+- `run_w3_sglang.sh` -- `SERVER_READY_TIMEOUT_S=3600` env (override to lower)
+- `run_w3_sglang_dp2.sh`, `run_w3_vllm.sh`, `run_w3_vllm_dp2.sh` -- `3600s`
   hardcoded in the wait loop.

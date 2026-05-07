@@ -100,7 +100,7 @@ class TestHasPeekTags(unittest.TestCase):
 
         # Current behavior: checks only first element
         result = PeekEngine._has_peek_tags(mixed)
-        # This is False because first element is untagged — KNOWN ISSUE
+        # This is False because first element is untagged -- KNOWN ISSUE
         self.assertFalse(result)
 
 
@@ -192,7 +192,7 @@ class TestTagGrouping(unittest.TestCase):
 
         total_grouped = sum(len(m) for m in tag_groups.values())
         self.assertEqual(total_grouped, 200,
-                         f"Only {total_grouped}/200 requests grouped — "
+                         f"Only {total_grouped}/200 requests grouped -- "
                          f"{200 - total_grouped} silently dropped")
 
     def test_untagged_requests_would_be_dropped(self):
@@ -243,17 +243,17 @@ class TestClientRankUsage(unittest.TestCase):
         self.assertEqual(ranks_seen, {0, 1, 2})
 
     def test_rank_discarded_in_grouping(self):
-        """_run_tagged uses _ for rank — it's discarded during grouping."""
+        """_run_tagged uses _ for rank -- it's discarded during grouping."""
         reqs, _ = _make_tagged_requests(3, 5)
 
         # Simulate the exact line from _run_tagged:
         #   _, group_key, _ = self._parse_peek_rid(rid)
-        # The first _ is rank, the last _ is original_rid — both discarded
+        # The first _ is rank, the last _ is original_rid -- both discarded
         for r in reqs:
             result = PeekEngine._parse_peek_rid(r.rid)
             self.assertEqual(len(result), 3)
             rank, group_key, orig_rid = result
-            # rank is an int — it's parseable but unused
+            # rank is an int -- it's parseable but unused
             self.assertIsInstance(rank, int)
 
     def test_largest_group_gets_rank_zero_from_client(self):

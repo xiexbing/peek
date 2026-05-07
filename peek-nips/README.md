@@ -5,16 +5,16 @@
 PEEK reasons about the prefix-sharing structure of *waiting* requests
 and uses it to drive cluster-aware scheduling and queue-aware eviction
 in existing LLM serving engines (SGLang, vLLM). PEEK installs by
-monkey-patching at import time — no fork of either upstream engine is
+monkey-patching at import time -- no fork of either upstream engine is
 required, and an unmodified engine binary can be flipped between
 vanilla and PEEK-enabled with environment flags.
 
 PEEK ships **two operating modes**:
 
-- **`peek.online`** *(this paper)* — streaming-arrival serving. Rust-backed
+- **`peek.online`** *(this paper)* -- streaming-arrival serving. Rust-backed
   pending radix tree + Cluster-LPM (cLPM) scheduler + queue-aware eviction.
   Targets continuous arrivals under tight latency budgets.
-- **`peek.offline`** — batch-style serving. Python prefix trie + DFS reorder
+- **`peek.offline`** -- batch-style serving. Python prefix trie + DFS reorder
   + queue-aware eviction (`queue-aware` cache policy). Targets known-batch
   and offline-throughput regimes.
 
@@ -27,16 +27,16 @@ LLM serving engines optimize against the *current* state of their KV
 cache, but ignore the prefix-sharing structure of requests *waiting* in
 the CPU queue. PEEK closes that gap with three composable mechanisms:
 
-1. **Pending-tree dual-walk for prefix matching** *(online)* — one paired
+1. **Pending-tree dual-walk for prefix matching** *(online)* -- one paired
    traversal of PEEK's queue tree against the engine's prefix cache yields
    every waiting request's longest-prefix-match in $O(C \cdot D)$ instead
    of stock LPM's $O(N \cdot D)$.
-2. **Cluster-aware admission and eviction** *(both modes)* — admit the
+2. **Cluster-aware admission and eviction** *(both modes)* -- admit the
    pioneer of a large queued cluster ahead of unrelated singletons so its
    siblings inherit the freshly cached prefix; a co-designed eviction hook
    applies the same signal in reverse, protecting blocks ancestral to
    queued demand.
-3. **Multi-lane stride scheduler** *(online)* — interleave a cache-locality
+3. **Multi-lane stride scheduler** *(online)* -- interleave a cache-locality
    lane (cLPM) with an arrival-time fairness lane to bound starvation
    under streaming arrivals; an EMA-smoothed dynamic-lane controller
    adapts the lane share to queue composition.
@@ -77,7 +77,7 @@ APPLY_OFFLINE_PATCHES=1 bash scripts/install_peek_vllm.sh        # also apply of
 > both engines on the same machine.
 
 See [`EXAMPLES.md`](EXAMPLES.md) for copy-paste launch commands per
-(mode × engine) combination plus ablation recipes (eviction-only,
+(mode x engine) combination plus ablation recipes (eviction-only,
 fixed lane share, multi-GPU TP=2, client-side dispatch).
 
 ## Smoke test (~5 min, no GPU required)
@@ -93,7 +93,7 @@ cargo test --release
 
 All tests should pass on a laptop with no LLM engine installed.
 
-## Online mode — streaming arrivals (paper focus)
+## Online mode -- streaming arrivals (paper focus)
 
 `peek.online` installs only when the engine imports
 `peek.online.engines.<name>.patch_hook` *and* at least one `PEEK_ONLINE_*`
@@ -147,7 +147,7 @@ PEEK_ONLINE_CLPM_DYNAMIC_LANE=1
 PEEK_ONLINE_EVICTION_MODE=cluster
 ```
 
-## Offline mode — batched / scheduler-side
+## Offline mode -- batched / scheduler-side
 
 `peek.offline` patches the engine's source files directly (under
 `sglang_patches/` and `vllm_patches/`), adding a `queue-aware` cache
@@ -180,7 +180,7 @@ python -m sglang.launch_server --radix-eviction-policy queue-aware ...
 
 ## Reproducing the paper
 
-The paper evaluates PEEK on five workloads (W1–W5) on SGLang 0.5.9 and
+The paper evaluates PEEK on five workloads (W1-W5) on SGLang 0.5.9 and
 vLLM 0.19.1. All datasets and models are publicly available; below is
 the per-workload mapping and the commands to launch each.
 
@@ -188,11 +188,11 @@ the per-workload mapping and the commands to launch each.
 
 | W   | Hardware                       | Model                              | Dataset                                  |
 | --- | ------------------------------ | ---------------------------------- | ---------------------------------------- |
-| W1  | 1×H100 80GB                    | Qwen2.5-32B-Instruct               | LooGLE long-document, 100 group prompts (~1024 tok), Zipf-α=1.0 |
-| W2  | 1×H100 80GB                    | Qwen2.5-32B-Instruct               | LooGLE long-document, 40 group prompts (~8192 tok), Zipf-α=1.0  |
-| W3  | 2–4×H100 80GB (TP=2; DP=1/2)   | Llama-3.1-70B-Instruct             | Multi-GPU scaling of W1 (cell C) and W2 (cell B)                |
-| W4  | 1×H100 80GB                    | Mistral-Small-24B-Instruct-2501    | Mooncake `conversation_trace` (FAST'25), 4 rounds, 50 ms inter-turn; `agentic_only` and `agentic_shared` (1402-token shared prompt) |
-| W5  | 1×H100 80GB                    | Gemma-2-27B-it                     | LMSYS arena chat: `cell_C_long` (512–4096 tok), `cell_C_short` (32–1024 tok) |
+| W1  | 1xH100 80GB                    | Qwen2.5-32B-Instruct               | LooGLE long-document, 100 group prompts (~1024 tok), Zipf-α=1.0 |
+| W2  | 1xH100 80GB                    | Qwen2.5-32B-Instruct               | LooGLE long-document, 40 group prompts (~8192 tok), Zipf-α=1.0  |
+| W3  | 2-4xH100 80GB (TP=2; DP=1/2)   | Llama-3.1-70B-Instruct             | Multi-GPU scaling of W1 (cell C) and W2 (cell B)                |
+| W4  | 1xH100 80GB                    | Mistral-Small-24B-Instruct-2501    | Mooncake `conversation_trace` (FAST'25), 4 rounds, 50 ms inter-turn; `agentic_only` and `agentic_shared` (1402-token shared prompt) |
+| W5  | 1xH100 80GB                    | Gemma-2-27B-it                     | LMSYS arena chat: `cell_C_long` (512-4096 tok), `cell_C_short` (32-1024 tok) |
 
 ### Dataset fetch
 
@@ -221,8 +221,8 @@ google/gemma-2-27b-it
 | Framework                | PyTorch 2.9.1, Python 3.12.13, CUDA graphs **on**              |
 | Memory budget            | SGLang `mem_fraction_static=0.88`; vLLM `gpu_memory_utilization=0.9` |
 | Seeds                    | 42, 142, 242 (3 reps; reported numbers are seed means; ± = seed std-dev) |
-| Warmup                   | First ~10–20 % of requests excluded from metric aggregation    |
-| Load levels (per cell)   | *moderate* (sustained queue ≈60–100); *heavy* (≈150–200)       |
+| Warmup                   | First ~10-20 % of requests excluded from metric aggregation    |
+| Load levels (per cell)   | *moderate* (sustained queue ≈60-100); *heavy* (≈150-200)       |
 
 ### Commands per workload (paper primary configuration)
 
@@ -318,7 +318,7 @@ peek/
 
 | marker          | what it needs                                                | how to run                              |
 | --------------- | ------------------------------------------------------------ | --------------------------------------- |
-| *(unmarked)*    | CPU only — no engine import                                  | `pytest -m "not gpu and not engine"`    |
+| *(unmarked)*    | CPU only -- no engine import                                  | `pytest -m "not gpu and not engine"`    |
 | `engine`        | sglang or vllm Python modules importable (CPU OK, no model)  | `pytest -m engine`                      |
 | `gpu`           | a CUDA-capable GPU + an actual engine running a real model   | `pytest -m gpu`                         |
 

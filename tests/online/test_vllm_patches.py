@@ -5,7 +5,7 @@ installs its monkey-patches on vLLM's Scheduler and BlockPool when the
 relevant ``PEEK_ONLINE_*`` flags are set, and that the patched code path
 runs end-to-end on a CPU-only BlockPool (no model, no GPU).
 
-The test module sets the relevant environment variables at import time —
+The test module sets the relevant environment variables at import time --
 the patch_hook reads them once when first imported, so tests cannot toggle
 them retroactively. Run with:
 
@@ -61,7 +61,7 @@ def test_scheduler_methods_replaced(installed):
     point at vLLM's stock implementations once patch_hook installs.
 
     We compare against a fresh import of the unwrapped classes from
-    ``vllm.v1.core.sched.scheduler`` — but since patch_hook overwrites
+    ``vllm.v1.core.sched.scheduler`` -- but since patch_hook overwrites
     them in place, we instead check function identity against the
     qualname/module heuristic that the patched closures define.
     """
@@ -114,7 +114,7 @@ def test_blockpool_get_new_blocks_returns_blocks(installed):
 
 
 def test_install_is_idempotent(installed):
-    """Re-importing patch_hook in the same process must be a no-op —
+    """Re-importing patch_hook in the same process must be a no-op --
     the gate is ``Scheduler._peek_installed``. Verify the patched
     method identities don't change across a second import."""
     Scheduler = installed["Scheduler"]
@@ -146,7 +146,7 @@ def test_install_is_idempotent(installed):
 
 def test_pending_tree_top_level_export():
     """patch_hook imports ``PendingTree`` and ``PeekDemandStrategy`` from
-    the top-level ``peek`` package. Both must be present — a regression
+    the top-level ``peek`` package. Both must be present -- a regression
     in __init__.py would silently disable the integration."""
     from peek import PendingTree, PeekDemandStrategy
     assert PendingTree is not None

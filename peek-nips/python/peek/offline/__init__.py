@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Peek — Prefix-Sharing Batch Reordering for LLM Inference."""
+"""Peek -- Prefix-Sharing Batch Reordering for LLM Inference."""
 
 # Auto-patch supported backends on import
 from peek.offline.install import install_all as _install_all

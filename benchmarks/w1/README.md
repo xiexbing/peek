@@ -1,10 +1,10 @@
-# W1 — Shared-prompt co-design across oversubscription
+# W1 -- Shared-prompt co-design across oversubscription
 
 > Environment: sglang 0.5.9 / vllm 0.19.1, torch 2.9.1, Python 3.12,
-> 1×H100 80GB (bf16). Full spec at `benchmarks/ENVIRONMENT.md`.
+> 1xH100 80GB (bf16). Full spec at `benchmarks/ENVIRONMENT.md`.
 > sglang driver: this README. vllm driver: `README_vllm.md`.
 > Rate calibration: per-engine, per-cell. r_sat = highest rate with
-> `errored=0` AND `slo_attainment_pct >= 90%`; `moderate = 0.4 × r_sat`, `heavy = 0.8 × r_sat`. See
+> `errored=0` AND `slo_attainment_pct >= 90%`; `moderate = 0.4 x r_sat`, `heavy = 0.8 x r_sat`. See
 > `benchmarks/ENVIRONMENT.md#rate-calibration-moderate--heavy-per-cell`.
 
 
@@ -12,12 +12,12 @@
 
 One workload; two experimental jobs:
 
-1. **Primary performance comparison** — peek co-design (clpm_gm_pe) vs baselines (lpm_lru stock
+1. **Primary performance comparison** -- peek co-design (clpm_gm_pe) vs baselines (lpm_lru stock
    SGLang, fcfs_lru SGLang-FCFS, fcfs_apc_lru vLLM [external]).
-2. **Component ablation** — decompose peek's win into eviction (lpm_lru→lpm_pe),
-   scheduling stages (lpm_lru→clpm→clpm_gm→clpm_gm_dl), and co-design (clpm_gm→clpm_gm_pe, clpm_gm_dl→clpm_gm_dl_pe).
+2. **Component ablation** -- decompose peek's win into eviction (lpm_lru->lpm_pe),
+   scheduling stages (lpm_lru->clpm->clpm_gm->clpm_gm_dl), and co-design (clpm_gm->clpm_gm_pe, clpm_gm_dl->clpm_gm_dl_pe).
 
-Plus an **oversubscription-sensitivity trend** across four cells (2×, 4×, 8×, 16×)
+Plus an **oversubscription-sensitivity trend** across four cells (2x, 4x, 8x, 16x)
 that shows how peek's advantage scales with KV pressure.
 
 ## Matrix
@@ -26,12 +26,12 @@ that shows how peek's advantage scales with KV pressure.
 
 | cell | G   | prefix | N    | warmup | KV footprint | oversub |
 | ---- | --- | ------ | ---- | ------ | ------------ | ------- |
-| A    | 100 | 1024   | 1000 | 200    | 102 K        | 2×      |
-| B    | 200 | 1024   | 2000 | 400    | 205 K        | 4×      |
-| C    | 100 | 4096   | 1000 | 200    | 410 K        | 8× (PRIMARY) |
-| D    | 200 | 4096   | 2000 | 400    | 820 K        | 16× (extreme) |
+| A    | 100 | 1024   | 1000 | 200    | 102 K        | 2x      |
+| B    | 200 | 1024   | 2000 | 400    | 205 K        | 4x      |
+| C    | 100 | 4096   | 1000 | 200    | 410 K        | 8x (PRIMARY) |
+| D    | 200 | 4096   | 2000 | 400    | 820 K        | 16x (extreme) |
 
-### Rates per cell (req/s; planning estimates — recalibrate from r_sat probe)
+### Rates per cell (req/s; planning estimates -- recalibrate from r_sat probe)
 
 | cell | moderate | heavy |
 | ---- | -------- | ----- |
@@ -46,7 +46,7 @@ Arrival is **Poisson** (inter-arrival = `Exp(rate)`). Group assignment is
 **CUDA graphs are ENABLED** (production-realistic configuration) for all W1
 cells. To reproduce a graphs-off run for debugging, set
 `DISABLE_CUDA_GRAPH=1` in the environment. Graphs-off should only be used
-to rule out peek–graph-capture interaction issues; main-table results must
+to rule out peek-graph-capture interaction issues; main-table results must
 use graphs-on.
 
 ### Policies
@@ -79,8 +79,8 @@ comparisons are valid).
 
 ### Totals
 
-- Cell C: 8 policies × 2 rates × 3 seeds = **48 runs**
-- Cells A, B, D: 6 × 2 × 3 = **36 runs each = 108 runs**
+- Cell C: 8 policies x 2 rates x 3 seeds = **48 runs**
+- Cells A, B, D: 6 x 2 x 3 = **36 runs each = 108 runs**
 - **W1 total: 156 runs** (cells C + A + B + D with their respective policy sets).
 
 ### Budget estimate
@@ -116,7 +116,7 @@ CELLS="A" POLICIES_CORE="lpm_lru clpm_gm_pe" SEEDS="42" RATES="moderate" \
 
 ### Other drivers (not yet written)
 
-- `run_w1_vllm.sh` — for the fcfs_apc_lru vLLM external baseline
+- `run_w1_vllm.sh` -- for the fcfs_apc_lru vLLM external baseline
 
 ### Resume after interruption
 
@@ -148,49 +148,49 @@ python3 benchmarks/w1/aggregate.py
 
 Produces:
 
-- `summary.csv` — one row per run (raw per-seed metrics)
-- `aggregated.csv` — median/mean/stdev across seeds per (cell × rate × policy)
-- `delta.csv` — each non-baseline policy's % improvement vs lpm_lru (positive = better)
+- `summary.csv` -- one row per run (raw per-seed metrics)
+- `aggregated.csv` -- median/mean/stdev across seeds per (cell x rate x policy)
+- `delta.csv` -- each non-baseline policy's % improvement vs lpm_lru (positive = better)
 
 ## Expected outputs
 
 ### Primary headline (cell C, heavy rate, median-of-3-seeds)
 
-Row: **clpm_gm_pe vs lpm_lru** → report TPOT p99 reduction, goodput increase, cache-hit
+Row: **clpm_gm_pe vs lpm_lru** -> report TPOT p99 reduction, goodput increase, cache-hit
 improvement. This is the paper's headline table.
 
 ### Ablation ladder (cell C, heavy rate)
 
-Graded improvement lpm_lru → lpm_pe → clpm → clpm_gm → clpm_gm_dl → clpm_gm_pe → clpm_gm_dl_pe, showing each component's
+Graded improvement lpm_lru -> lpm_pe -> clpm -> clpm_gm -> clpm_gm_dl -> clpm_gm_pe -> clpm_gm_dl_pe, showing each component's
 contribution.
 
 ### Oversubscription plot
 
 X = oversub {2, 4, 8, 16}, Y = clpm_gm_pe vs lpm_lru relative improvement (%) on primary
 metrics (TPOT p99, goodput, cache hit). Expect the curve to grow with oversub,
-possibly plateau or fall at 16× (pure-thrash regime).
+possibly plateau or fall at 16x (pure-thrash regime).
 
 ### Super-additivity test
 
-Per (cell × rate): does `clpm_gm_pe − lpm_lru` > `(lpm_pe − lpm_lru) + (clpm_gm − lpm_lru)`?
-If yes at 4× and 8×, the co-design claim lands.
+Per (cell x rate): does `clpm_gm_pe − lpm_lru` > `(lpm_pe − lpm_lru) + (clpm_gm − lpm_lru)`?
+If yes at 4x and 8x, the co-design claim lands.
 
 ## Pre-registered predictions (TPOT p99 reduction vs lpm_lru)
 
 | oversub | sched-only (clpm_gm) | evict-only (lpm_pe) | co-design (clpm_gm_pe) | super-additivity |
 | ------- | --------------- | --------------- | -------------- | ---------------- |
-| 2×      | 10–20%          | <5%             | 10–25%         | 1–5 pp           |
-| 4×      | 15–30%          | 5–15%           | 20–40%         | 5–10 pp          |
-| 8×      | 20–40%          | 20–40%          | 35–60%         | 10–20 pp         |
-| 16×     | 20–30%          | 40–60%          | 40–70%         | 15–25 pp         |
+| 2x      | 10-20%          | <5%             | 10-25%         | 1-5 pp           |
+| 4x      | 15-30%          | 5-15%           | 20-40%         | 5-10 pp          |
+| 8x      | 20-40%          | 20-40%          | 35-60%         | 10-20 pp         |
+| 16x     | 20-30%          | 40-60%          | 40-70%         | 15-25 pp         |
 
 ## Falsification
 
-- **clpm_gm ≈ clpm** → group-major adds nothing → drop grouping, simplify paper
-- **clpm_gm_dl ≈ clpm_gm** → dynamic lane adds nothing → drop dyn from the claim
-- **clpm_gm_pe ≈ max(lpm_pe, clpm_gm)** → no super-additivity → "two separate improvements",
+- **clpm_gm ≈ clpm** -> group-major adds nothing -> drop grouping, simplify paper
+- **clpm_gm_dl ≈ clpm_gm** -> dynamic lane adds nothing -> drop dyn from the claim
+- **clpm_gm_pe ≈ max(lpm_pe, clpm_gm)** -> no super-additivity -> "two separate improvements",
   not "co-design"
-- **seed stdev > mean effect** in any cell → underpowered, add seeds
+- **seed stdev > mean effect** in any cell -> underpowered, add seeds
 
 ## External baselines (not in `run_w1_sglang.sh`)
 
@@ -202,7 +202,7 @@ If yes at 4× and 8×, the co-design claim lands.
 ```
 benchmarks/w1/
 ├── README.md                   (this file)
-├── run_w1_sglang.sh            driver for sglang-based policies (lpm_lru, fcfs_lru, lpm_pe–clpm_gm_dl_pe)
+├── run_w1_sglang.sh            driver for sglang-based policies (lpm_lru, fcfs_lru, lpm_pe-clpm_gm_dl_pe)
 ├── aggregate.py                post-hoc summary
 └── results/                    populated by drivers (gitignored)
     └── seed_<seed>/

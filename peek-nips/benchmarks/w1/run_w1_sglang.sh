@@ -1,20 +1,20 @@
 #!/bin/bash
-# W1 benchmark driver (sglang-based policies) — "Shared-prompt co-design
+# W1 benchmark driver (sglang-based policies) -- "Shared-prompt co-design
 # across oversubscription".
 #
 # This driver handles everything served via an sglang process: stock SGLang
-# baselines (lpm_lru, fcfs_lru) and all peek policies (lpm_pe–clpm_gm_dl_pe). External baselines that
+# baselines (lpm_lru, fcfs_lru) and all peek policies (lpm_pe-clpm_gm_dl_pe). External baselines that
 # use a different inference engine have their own drivers:
-#   - fcfs_apc_lru vLLM → run_w1_vllm.sh
+#   - fcfs_apc_lru vLLM -> run_w1_vllm.sh
 #
 # Matrix
 #   Cells
-#     A  G=100 prefix=1024 N=1000 warmup=200   KV footprint 102K    → ~2×  oversub
-#     B  G=200 prefix=1024 N=2000 warmup=400   KV footprint 205K    → ~4×  oversub
-#     C  G=100 prefix=4096 N=1000 warmup=200   KV footprint 410K    → ~8×  oversub   [PRIMARY]
-#     D  G=200 prefix=4096 N=2000 warmup=400   KV footprint 820K    → ~16× oversub (extreme)
+#     A  G=100 prefix=1024 N=1000 warmup=200   KV footprint 102K    -> ~2x  oversub
+#     B  G=200 prefix=1024 N=2000 warmup=400   KV footprint 205K    -> ~4x  oversub
+#     C  G=100 prefix=4096 N=1000 warmup=200   KV footprint 410K    -> ~8x  oversub   [PRIMARY]
+#     D  G=200 prefix=4096 N=2000 warmup=400   KV footprint 820K    -> ~16x oversub (extreme)
 #
-#   Rates (req/s) per cell — calibrated against the LPM+LRU baseline so that
+#   Rates (req/s) per cell -- calibrated against the LPM+LRU baseline so that
 #   moderate sustains queue p50 ∈ [60,127] and heavy sustains queue ≥128
 #   (the SGLang LPM-fallback boundary; paper §4 Table 7).
 #     A  moderate=40 heavy=60
@@ -25,20 +25,20 @@
 #   Seeds   42, 142, 242
 #
 #   Policies
-#     lpm_lru   SGLang LPM   + LRU                 — baseline
-#     fcfs_lru   SGLang FCFS  + LRU                 — scheduling-axis baseline
-#     lpm_pe   SGLang LPM   + peek_evict          — eviction-only ablation
-#     clpm   peek_flpm (per-req, 0.7) + LRU     — scheduling stage 1
-#     clpm_gm   peek_flpm_gm + LRU                 — scheduling stage 2 (+ grouping)
-#     clpm_gm_dl   peek_flpm_gm_dyn + LRU             — scheduling stage 3 (+ dynamic lane)
-#     clpm_gm_pe   peek_flpm_gm + peek_evict          — co-design (primary claim)
-#     clpm_gm_dl_pe   peek_flpm_gm_dyn + peek_evict      — co-design + fairness
+#     lpm_lru   SGLang LPM   + LRU                 -- baseline
+#     fcfs_lru   SGLang FCFS  + LRU                 -- scheduling-axis baseline
+#     lpm_pe   SGLang LPM   + peek_evict          -- eviction-only ablation
+#     clpm   peek_flpm (per-req, 0.7) + LRU     -- scheduling stage 1
+#     clpm_gm   peek_flpm_gm + LRU                 -- scheduling stage 2 (+ grouping)
+#     clpm_gm_dl   peek_flpm_gm_dyn + LRU             -- scheduling stage 3 (+ dynamic lane)
+#     clpm_gm_pe   peek_flpm_gm + peek_evict          -- co-design (primary claim)
+#     clpm_gm_dl_pe   peek_flpm_gm_dyn + peek_evict      -- co-design + fairness
 #
 #   Layout
 #     Cell C: all 8 policies (full ablation + baselines)
 #     Cells A/B/D: 3-policy subset (lpm_lru, clpm_gm, clpm_gm_pe) for the oversubscription-sensitivity trend
 #
-#   Budget ~20 GPU-hours on 1×H100 (single-seed) / ~60 hrs for 3 seeds.
+#   Budget ~20 GPU-hours on 1xH100 (single-seed) / ~60 hrs for 3 seeds.
 #
 # Usage
 #   bash benchmarks/w1/run_w1_sglang.sh                               # full matrix, 3 seeds
@@ -149,7 +149,7 @@ launch_server() {
     extra_args+=(--tp "${TP}")
   fi
 
-  echo "[w1] launching $policy (sched=$sched tp=${TP:-1} cuda_graph=$([[ "$DISABLE_CUDA_GRAPH" == "1" ]] && echo off || echo on) env='$env_pref') → $slog"
+  echo "[w1] launching $policy (sched=$sched tp=${TP:-1} cuda_graph=$([[ "$DISABLE_CUDA_GRAPH" == "1" ]] && echo off || echo on) env='$env_pref') -> $slog"
   env \
     HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME" \
     $env_pref \
@@ -238,14 +238,14 @@ run_one() {
 # ------------------------------ main loop ---------------------------------
 #
 # Policy-major loop: one sglang launch per unique policy, all of that
-# policy's (seed × cell × rate) benches run back-to-back on the same server
+# policy's (seed x cell x rate) benches run back-to-back on the same server
 # with `/flush_cache` between benches. Saves ~12 GPU-hrs vs restart-per-run
-# for the full W1 matrix (156 runs → 8 launches instead of 156).
+# for the full W1 matrix (156 runs -> 8 launches instead of 156).
 #
 # State-hygiene note: sglang's `/flush_cache` clears the radix cache, but
 # peek's module-level globals (e.g. _dyn_lane_state EMA in lpm_integration,
 # _phase_timings in patch_hook) persist inside the server process across
-# benches of the same policy. For most metrics this is harmless — the peek
+# benches of the same policy. For most metrics this is harmless -- the peek
 # state keys on `id(tree)` and sglang recreates the tree on flush. If a
 # future claim needs cold-start equivalence between benches of the same
 # policy, set FULL_RESTART=1 to get one launch per run (paper-ironclad,
@@ -288,7 +288,7 @@ echo "[w1] primary-cell=$PRIMARY_CELL  policies_full=$POLICIES_FULL"
 echo "[w1]                        policies_core=$POLICIES_CORE"
 echo "[w1] restart mode: $([[ "$FULL_RESTART" == "1" ]] && echo 'FULL_RESTART=1 (one launch per run)' || echo 'policy-major (one launch per policy)')"
 echo "[w1] expected launches: $launches_expected"
-echo "[w1] results → $RESULTS_DIR"
+echo "[w1] results -> $RESULTS_DIR"
 echo
 
 idx=0
@@ -320,7 +320,7 @@ for policy in "${policy_order[@]}"; do
     if [[ "$server_up" == 0 || "$FULL_RESTART" == "1" ]]; then
       slog="$slog_base"
       if ! launch_server "$policy" "$slog"; then
-        echo "[w1]   LAUNCH FAILED for $policy — skipping remaining benches of this policy"
+        echo "[w1]   LAUNCH FAILED for $policy -- skipping remaining benches of this policy"
         server_up=0
         break
       fi
@@ -328,7 +328,7 @@ for policy in "${policy_order[@]}"; do
     fi
 
     if ! run_one "$cell" "$rate_label" "$policy" "$seed" "$out"; then
-      echo "[w1]   BENCH FAILED for $policy (seed=$seed cell=$cell rate=$rate_label) — server log tail:"
+      echo "[w1]   BENCH FAILED for $policy (seed=$seed cell=$cell rate=$rate_label) -- server log tail:"
       tail -n 30 "$slog_base" || true
       # Treat bench failure as server-possibly-bad; restart on next bench.
       kill_server

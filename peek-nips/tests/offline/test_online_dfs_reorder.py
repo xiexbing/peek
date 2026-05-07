@@ -138,7 +138,7 @@ class TestDfsReorderPoissonArrivals(unittest.TestCase):
                            f"Zipf workload adjacency too low: {adj:.2f}")
 
     def test_many_groups_deep_prefix(self):
-        """100 groups × 4096-token prefix (mirrors run_online_peek_vs_lpm.sh)."""
+        """100 groups x 4096-token prefix (mirrors run_online_peek_vs_lpm.sh)."""
         # Use shorter prefix for test speed, but > max_depth(128) to test truncation
         sequences, labels = _make_poisson_interleaved(
             num_groups=100, prefix_len=256, n=500, seed=7, zipf_alpha=1.5,
@@ -168,7 +168,7 @@ class TestDfsReorderPoissonArrivals(unittest.TestCase):
         labels = [0] * 30
         order = reorder_for_prefix_sharing(sequences)
         self.assertEqual(set(order), set(range(30)))
-        # All same group → adjacency must be 1.0
+        # All same group -> adjacency must be 1.0
         self.assertAlmostEqual(_adjacency_score(order, labels), 1.0)
 
     def test_no_sharing_identity(self):
@@ -244,7 +244,7 @@ class TestTrieDfsPoissonInput(unittest.TestCase):
 
         coverage, max_group, avg_depth = trie.sharing_score(min_depth=32)
         self.assertGreater(coverage, 0.5,
-                           "Most requests share prefixes — coverage should be high")
+                           "Most requests share prefixes -- coverage should be high")
         self.assertGreater(avg_depth, 100,
                            "Avg sharing depth should reflect the 200-token prefix")
         self.assertGreater(max_group, 1)
@@ -335,7 +335,7 @@ class TestPeekDispatcherPoisson(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestEndToEndPoissonDfsReorder(unittest.TestCase):
-    """End-to-end: generate Poisson workload → reorder → verify grouping."""
+    """End-to-end: generate Poisson workload -> reorder -> verify grouping."""
 
     def test_shared_system_prompts_poisson_reorder(self):
         """Simulate the shared_system_prompts workload with Poisson arrivals

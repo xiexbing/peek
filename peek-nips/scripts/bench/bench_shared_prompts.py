@@ -38,7 +38,7 @@ import aiohttp
 
 
 # ---------------------------------------------------------------------------
-# Workload generation — LooGLE-backed (paper-comparable) with synthetic fallback
+# Workload generation -- LooGLE-backed (paper-comparable) with synthetic fallback
 # ---------------------------------------------------------------------------
 
 
@@ -46,7 +46,7 @@ def _try_load_loogle(max_docs: int):
     """Load LooGLE longdep_qa directly via the datasets library.
 
     Returns list[{context, title, questions}] on success, None on failure
-    (no network, dataset cache missing, etc). Self-contained — does not
+    (no network, dataset cache missing, etc). Self-contained -- does not
     import from superkv to avoid sys.path conflicts with our peek package.
     """
     import json as _json
@@ -175,7 +175,7 @@ _REPOBENCH_QUESTIONS = [
 
 
 def _get_tokenizer(model_name: str):
-    """Load the model's tokenizer — used to truncate LooGLE docs precisely to
+    """Load the model's tokenizer -- used to truncate LooGLE docs precisely to
     `prefix_tokens`. Returns None if transformers isn't importable."""
     try:
         from transformers import AutoTokenizer  # type: ignore
@@ -310,7 +310,7 @@ def _zipf_group_assignments(
     skew; higher alpha = more skewed (colder tail gets almost no traffic).
     """
     weights = [1.0 / ((k + 1) ** alpha) for k in range(num_groups)]
-    # Randomly shuffle group index → weight mapping so "hot" groups aren't
+    # Randomly shuffle group index -> weight mapping so "hot" groups aren't
     # literally group 0, 1, 2... (avoids arbitrary correlation with tree node_ids).
     perm = list(range(num_groups))
     rng.shuffle(perm)
@@ -351,11 +351,11 @@ def generate_workload(
     """Group-assignment + Poisson inter-arrival schedule.
 
     distribution: 'uniform' (round-robin random) or 'zipf' (hot groups see
-    much more traffic — Zipf-weighted sampling with exponent zipf_alpha).
+    much more traffic -- Zipf-weighted sampling with exponent zipf_alpha).
 
     Both group assignment and arrival schedule are fully deterministic given
     (seed, n, groups, rate, distribution, zipf_alpha). Same seed replays the
-    same workload across policies → fair comparison.
+    same workload across policies -> fair comparison.
     """
     rng = random.Random(seed)
     group_prompts, group_questions = _build_group_prompts(
@@ -409,7 +409,7 @@ class ReqMetric:
     # request (post-semaphore, post-arrival-delay); first_token_ts and
     # last_token_ts are wall-clock moments for the first and last streamed
     # content tokens. response_id is sglang's internal rid observed from
-    # the OpenAI stream — matches server-side req.rid for cross-process join.
+    # the OpenAI stream -- matches server-side req.rid for cross-process join.
     dispatch_ts: float = 0.0
     first_token_ts: float = 0.0
     last_token_ts: float = 0.0
@@ -428,7 +428,7 @@ async def dispatch_one(
     # Build user message. If the per-req target length differs from the
     # hard ceiling (hide-max-tokens mode), append a length-hint instruction
     # so the model actually varies its output. Qwen follows "in about N
-    # words" reasonably well — not exact, which is what we want: the
+    # words" reasonably well -- not exact, which is what we want: the
     # sglang new_token_ratio estimator must have genuine uncertainty.
     user_text = req.user_message
     if req.target_tokens != req.max_tokens:
@@ -561,7 +561,7 @@ async def run_sweep(args) -> dict:
         if sum(p for p, _ in mix) != 100:
             raise ValueError(f"--decode-mix percentages must sum to 100, got {mix}")
         # Production pattern: target length is a property of the GROUP (the
-        # type of workload — chat vs RAG vs CoT), not a per-request roll.
+        # type of workload -- chat vs RAG vs CoT), not a per-request roll.
         # Reqs sharing a system prompt come from the same caller and have
         # similar output-length distributions. Assigning one target per group
         # gives peek's per-cluster decode predictor real signal to learn from.
@@ -573,13 +573,13 @@ async def run_sweep(args) -> dict:
         while len(group_lengths) < n_groups:
             group_lengths.append(mix[-1][1])
         rng.shuffle(group_lengths)
-        # group_id → target_tokens map.
+        # group_id -> target_tokens map.
         group_target = {g: group_lengths[g] for g in range(n_groups)}
         for req in workload:
             ln = group_target[req.group_id]
             req.target_tokens = ln
             if args.hide_max_tokens:
-                # Uniform loose ceiling → sglang must estimate via new_token_ratio.
+                # Uniform loose ceiling -> sglang must estimate via new_token_ratio.
                 req.max_tokens = args.max_tokens
             else:
                 req.max_tokens = ln
@@ -649,12 +649,12 @@ def _load_server_phases(path_or_glob: str) -> dict:
     """Read the server-side phase-timing dump ({rid: {arrive_ts, pick_ts}}).
 
     Accepts either a literal file path or a glob pattern with '{pid}' (or a
-    shell-style `*`) — sglang runs several subprocesses and each writes its
+    shell-style `*`) -- sglang runs several subprocesses and each writes its
     own PID-suffixed file. We read all of them and merge; the scheduler
     process is the only one that actually populates rids, so there's no
     conflict across files.
 
-    Returns {} on any failure — caller falls back to client-only metrics.
+    Returns {} on any failure -- caller falls back to client-only metrics.
     """
     import glob as _glob
     if "{pid}" in path_or_glob:
@@ -702,7 +702,7 @@ def summarize(
     cached_total = sum(m.cached_tokens for m in ok)
     prefilled_actual = max(0, prompt_total - cached_total)
 
-    # Goodput under SLO — joint (all three must hold per-request).
+    # Goodput under SLO -- joint (all three must hold per-request).
     def passes(m: ReqMetric) -> bool:
         if m.error is not None or m.ttft_ms <= 0:
             return False
@@ -719,7 +719,7 @@ def summarize(
     goodput_req_per_s = slo_ok / wall_s if wall_s > 0 else 0
 
     # ------------------------------------------------------------------
-    # Phase decomposition — join per-request client data with server-side
+    # Phase decomposition -- join per-request client data with server-side
     # arrive/pick timings dumped by peek's patch_hook.
     #
     #   server_queue_wait = pick_ts - arrive_ts
@@ -731,7 +731,7 @@ def summarize(
     # arrive_ts from the server is when the rid FIRST appears in the sync
     # loop's waiting_queue snapshot. That's ~ a few ms after sglang's HTTP
     # ingress accepted the request. dispatch_ts from the client is when
-    # aiohttp returned from .post() entry — the two differ by network +
+    # aiohttp returned from .post() entry -- the two differ by network +
     # tokenizer pre-processing. We treat server arrive_ts as the authority
     # for server-side queue start.
     server_phases = _load_server_phases(args.phase_dump_path)
@@ -876,7 +876,7 @@ def _parse() -> argparse.Namespace:
     p.add_argument(
         "--decode-mix", default="",
         help="Mixed decode lengths: 'pct:len,pct:len,...'. "
-             "Example: '20:512,60:4096,20:8192' → 20%% 512, 60%% 4096, 20%% 8192. "
+             "Example: '20:512,60:4096,20:8192' -> 20%% 512, 60%% 4096, 20%% 8192. "
              "Overrides --max-tokens when set. Percentages must sum to 100.",
     )
     p.add_argument(
@@ -909,7 +909,7 @@ def _parse() -> argparse.Namespace:
     p.add_argument(
         "--phase-dump-path", default="/tmp/peek_phases_{pid}.json",
         help="Where the server's peek patch_hook dumps per-rid phase timings. "
-             "Accepts {pid} or '*' — client reads all matching files and merges "
+             "Accepts {pid} or '*' -- client reads all matching files and merges "
              "(sglang runs several subprocesses; only the scheduler one has "
              "real data, but each writes its own PID-suffixed file).",
     )

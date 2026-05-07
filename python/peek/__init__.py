@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PEEK — Queue-informed KV cache management for LLM serving.
+"""PEEK -- Queue-informed KV cache management for LLM serving.
 
 Two operating modes:
-  * peek.online   — streaming-arrival path (Rust-backed pending tree,
+  * peek.online   -- streaming-arrival path (Rust-backed pending tree,
                     Cluster-LPM scheduling, queue-aware eviction);
                     imported by env-var-gated patch hooks.
-  * peek.offline  — batch path (Python prefix trie, DFS reorder,
+  * peek.offline  -- batch path (Python prefix trie, DFS reorder,
                     queue-aware eviction); also publishes runtime
                     patch installers for SGLang and vLLM.
 
@@ -33,7 +33,7 @@ available; the offline path remains usable without it.
 try:
     from peek._core import PendingTree  # type: ignore
     _CORE_AVAILABLE = True
-except ImportError:  # pragma: no cover — pure-Python (offline-only) install.
+except ImportError:  # pragma: no cover -- pure-Python (offline-only) install.
     PendingTree = None  # type: ignore
     _CORE_AVAILABLE = False
 

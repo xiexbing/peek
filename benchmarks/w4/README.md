@@ -1,7 +1,7 @@
-# W4 — Agentic conversation bursts (Mooncake `conversation_trace`)
+# W4 -- Agentic conversation bursts (Mooncake `conversation_trace`)
 
 > Paper §4.4 (`agentic_only` and `agentic_shared`). Environment:
-> sglang 0.5.9 / vllm 0.19.1, torch 2.9.1, Python 3.12, 1×H100 80GB (bf16),
+> sglang 0.5.9 / vllm 0.19.1, torch 2.9.1, Python 3.12, 1xH100 80GB (bf16),
 > `mistralai/Mistral-Small-24B-Instruct-2501`.
 
 ## Purpose
@@ -14,10 +14,10 @@ by arrival order.
 
 Two workload variants:
 
-1. **`agentic_only`** — Mooncake `conversation_trace` (FAST'25) with
+1. **`agentic_only`** -- Mooncake `conversation_trace` (FAST'25) with
    within-session prefix accumulation; cross-session sharing comes only
    from hash_id overlap in the trace.
-2. **`agentic_shared`** — same trace plus a 1402-token shared system
+2. **`agentic_shared`** -- same trace plus a 1402-token shared system
    prompt prepended to every session (modelling tool-definitions /
    agent-instructions blocks that real agents reuse across sessions).
 
@@ -59,4 +59,4 @@ instructions.
 
 ## Seeds
 
-42, 142, 242. Override via `SEEDS=…`.
+42, 142, 242. Override via `SEEDS=...`.

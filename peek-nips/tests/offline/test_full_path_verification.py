@@ -17,17 +17,17 @@
 
 Verifies every component in one end-to-end simulation:
 
-  1. Client DFS trie: insert on arrival, remove on admission — always fresh
+  1. Client DFS trie: insert on arrival, remove on admission -- always fresh
   2. Client re-rank: pending counts correct after every submit and remove
-  3. Client→Server: tags parsed, grouping correct, pending counts pushed
-  4. Server→Client: direct remove() at admission — zero delay
+  3. Client->Server: tags parsed, grouping correct, pending counts pushed
+  4. Server->Client: direct remove() at admission -- zero delay
   5. Trie == waiting queue at EVERY cycle (not waiting+prefilling, not waiting+decoding)
   6. No request is leaked, dropped, or double-counted
 
 The simulation models the real SGLang pipeline:
-  arrival → submit(tag+trie insert) → server waiting queue
-  → PeekEngine.run(reorder+score+direct remove) → PrefillAdder admits
-  → prefill → first token → decode → complete
+  arrival -> submit(tag+trie insert) -> server waiting queue
+  -> PeekEngine.run(reorder+score+direct remove) -> PrefillAdder admits
+  -> prefill -> first token -> decode -> complete
 """
 
 import pytest
@@ -43,7 +43,7 @@ from peek.offline.reorder import PeekDispatcher
 
 
 # ---------------------------------------------------------------------------
-# Workload — Qwen 2.5 32B on H100
+# Workload -- Qwen 2.5 32B on H100
 # ---------------------------------------------------------------------------
 
 NUM_GROUPS = 100
@@ -98,7 +98,7 @@ def _poisson_order(n, seed=SEED):
 
 
 # ---------------------------------------------------------------------------
-# Phased server: waiting → prefill → decode → complete
+# Phased server: waiting -> prefill -> decode -> complete
 # ---------------------------------------------------------------------------
 
 class PhasedServer:
@@ -113,14 +113,14 @@ class PhasedServer:
 
     def step(self):
         """Tick one cycle. Returns (admitted, first_token, completed)."""
-        # Decode → complete
+        # Decode -> complete
         completed, still_decoding = [], []
         for req, ttl in self.decoding:
             (completed if ttl <= 1 else still_decoding).append(
                 req if ttl <= 1 else (req, ttl - 1))
         self.decoding = still_decoding
 
-        # Prefill → first token → decode
+        # Prefill -> first token -> decode
         first_token, still_prefilling = [], []
         for req, ttl in self.prefilling:
             if ttl <= 1:
@@ -130,7 +130,7 @@ class PhasedServer:
                 still_prefilling.append((req, ttl - 1))
         self.prefilling = still_prefilling
 
-        # Waiting → admitted → prefill
+        # Waiting -> admitted -> prefill
         admitted = []
         for _ in range(min(self.batch_size, len(self.waiting))):
             req = self.waiting.pop(0)
@@ -176,7 +176,7 @@ def run_full_verification(arrival_rate=30.0, batch_size=BATCH_SIZE):
     for cycle in range(1500):
         cycle_time = cycle * CYCLE_DURATION
 
-        # === Phase A: Poisson arrivals → submit() ===
+        # === Phase A: Poisson arrivals -> submit() ===
         arrivals_this = 0
         while next_arrival < N_REQUESTS and arrival_times[next_arrival] <= cycle_time:
             idx = arrival_order[next_arrival]
@@ -334,7 +334,7 @@ class TestTrieAlwaysFresh(unittest.TestCase):
 
 
 class TestZeroDelayRemove(unittest.TestCase):
-    """Direct remove fires in the same cycle as admission — zero delay."""
+    """Direct remove fires in the same cycle as admission -- zero delay."""
 
     @classmethod
     def setUpClass(cls):
@@ -346,7 +346,7 @@ class TestZeroDelayRemove(unittest.TestCase):
             self.assertEqual(
                 s["direct_removes"], s["admitted"],
                 f"Cycle {s['cycle']}: {s['direct_removes']} removes != "
-                f"{s['admitted']} admissions — delay detected",
+                f"{s['admitted']} admissions -- delay detected",
             )
 
     def test_no_remove_lag(self):
@@ -356,7 +356,7 @@ class TestZeroDelayRemove(unittest.TestCase):
                 self.assertGreater(
                     s["direct_removes"], 0,
                     f"Cycle {s['cycle']}: {s['admitted']} admitted but "
-                    f"0 removes — delay!",
+                    f"0 removes -- delay!",
                 )
 
 
@@ -477,7 +477,7 @@ class TestPendingLifecycle(unittest.TestCase):
 
 
 # ===================================================================
-# 100 req/s — high arrival rate creates real queue pressure
+# 100 req/s -- high arrival rate creates real queue pressure
 # ===================================================================
 
 class TestHighRate100ReqS(unittest.TestCase):
@@ -540,7 +540,7 @@ class TestHighRate100ReqS(unittest.TestCase):
         """At 100 req/s, the waiting queue must build up (unlike 30 req/s)."""
         peak_waiting = max(s["server_waiting"] for s in self.s)
         self.assertGreater(peak_waiting, 0,
-                           "No queue buildup at 100 req/s — test is not stressing the system")
+                           "No queue buildup at 100 req/s -- test is not stressing the system")
 
     def test_trie_peaks_above_zero(self):
         """Trie should have real content during the burst."""

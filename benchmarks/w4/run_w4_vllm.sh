@@ -1,5 +1,5 @@
 #!/bin/bash
-# W2 — Agentic LLM serving on vllm 0.19.1 (peek's flpm-vllm engine).
+# W2 -- Agentic LLM serving on vllm 0.19.1 (peek's flpm-vllm engine).
 #
 # Mirror of run_w2_agentic.sh adapted for vllm:
 #   - Server: vllm.entrypoints.openai.api_server (peek hooks via sitecustomize)
@@ -11,7 +11,7 @@
 #   clpm_gm_dl   peek_flpm + group_major + dynamic_lane                        scheduling-only
 #   clpm_gm_dl_pe   peek_flpm + group_major + dynamic_lane + peek_evict cluster   co-design
 #
-# Cells (calibrated against fcfs_apc_lru — start from the sglang W2 numbers and
+# Cells (calibrated against fcfs_apc_lru -- start from the sglang W2 numbers and
 # adjust after a smoke run):
 #   moderate  num_prompts=30   ~ engaged steady-state
 #   heavy     num_prompts=120  ~ engaged peak load
@@ -50,7 +50,7 @@ INTER_TURN_MEDIAN_MS="${INTER_TURN_MEDIAN_MS:-50}"
 INTER_TURN_SIGMA="${INTER_TURN_SIGMA:-0.5}"
 SHARED_SYSTEM_PROMPT_PATH="${SHARED_SYSTEM_PROMPT_PATH:-$W4_DATA/shared_system_prompt.txt}"
 
-# SLOs — re-using W1's defaults for consistency
+# SLOs -- re-using W1's defaults for consistency
 TTFT_SLO="${TTFT_SLO:-2000}"
 TPOT_SLO="${TPOT_SLO:-200}"
 E2E_SLO="${E2E_SLO:-60000}"
@@ -103,7 +103,7 @@ launch_server() {
   kill_server
   local env_pref; env_pref="$(policy_env "$policy")"
 
-  echo "[w4] launching $policy (env='$env_pref') → $slog"
+  echo "[w4] launching $policy (env='$env_pref') -> $slog"
   env \
     HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME" \
     PYTHONPATH="$SITECUSTOMIZE_DIR:${PYTHONPATH:-}" \
@@ -199,7 +199,7 @@ echo "[w4] inter-turn gap: LogNormal(median=${INTER_TURN_MEDIAN_MS}ms, sigma=${I
 [[ -n "${SHARED_SYSTEM_PROMPT_PATH}" && -f "${SHARED_SYSTEM_PROMPT_PATH}" ]] \
   && echo "[w4] shared system prompt: $SHARED_SYSTEM_PROMPT_PATH" \
   || echo "[w4] no shared system prompt"
-echo "[w4] results → $RESULTS_DIR"
+echo "[w4] results -> $RESULTS_DIR"
 
 # Preflight
 "$PY" -c "import peek.online.engines.vllm.patch_hook" 2>/dev/null \
@@ -231,7 +231,7 @@ ENV_FILE="$RESULTS_DIR/env.txt"
   echo "peek_commit:  $(cd "$REPO_ROOT" && git rev-parse HEAD 2>/dev/null || echo unknown)"
   echo "peek_branch:  $(cd "$REPO_ROOT" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 } > "$ENV_FILE"
-echo "[w4] env → $ENV_FILE"
+echo "[w4] env -> $ENV_FILE"
 
 idx=0
 for policy in $POLICIES; do
@@ -255,7 +255,7 @@ for policy in $POLICIES; do
 
       if [[ "$server_up" == 0 ]]; then
         if ! launch_server "$policy" "$slog"; then
-          echo "[w4]   LAUNCH FAILED for $policy — skipping"
+          echo "[w4]   LAUNCH FAILED for $policy -- skipping"
           break 2
         fi
         server_up=1

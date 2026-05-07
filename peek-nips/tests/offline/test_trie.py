@@ -45,7 +45,7 @@ class TestTrieInsertAndDFS:
         order = trie.dfs_order()
         assert set(order) == {0, 1, 2, 3}
 
-        # 0 and 1 share [1,2] — must be adjacent
+        # 0 and 1 share [1,2] -- must be adjacent
         pos = {idx: rank for rank, idx in enumerate(order)}
         assert abs(pos[0] - pos[1]) == 1
 
@@ -124,7 +124,7 @@ class TestSharingScore:
         assert max_group == 3
 
     def test_shallow_sharing_excluded_by_min_depth(self):
-        """Prompts share a prefix of only 4 tokens — should not count at min_depth=32."""
+        """Prompts share a prefix of only 4 tokens -- should not count at min_depth=32."""
         trie = PrefixTrie()
         trie.insert([1, 2, 3, 4, 100], 0)
         trie.insert([1, 2, 3, 4, 200], 1)

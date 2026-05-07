@@ -129,7 +129,7 @@ def generate_workload_singleton(
             print(f"[bench-lmsys] FATAL: 0 prompts loaded; aborting", file=sys.stderr)
             sys.exit(1)
         print(f"[bench-lmsys] only {len(prompts)} prompts available for N={n}; "
-              f"cycling to fill (will introduce some sharing — verify pool_size)", file=sys.stderr)
+              f"cycling to fill (will introduce some sharing -- verify pool_size)", file=sys.stderr)
         base = list(prompts)
         i = 0
         while len(prompts) < n:

@@ -1,6 +1,6 @@
 #!/bin/bash
 # W3 SGLang DP=1 driver (paper §4.3, Table 15): Llama-3.1-70B-Instruct at
-# TP=2 on a single replica (2×H100 80GB). Closed-loop bench at concurrency
+# TP=2 on a single replica (2xH100 80GB). Closed-loop bench at concurrency
 # cap 180 (no Poisson rate cap; --rate 0).
 #
 # Cells (paper §4.3, mirroring W1 cell C and W2 cell B at 70B scale):
@@ -20,7 +20,7 @@
 #   1. sglang 0.5.9 installed in your active Python environment.
 #   2. peek built and importable (`maturin develop --release`).
 #   3. PYTHONPATH includes scripts/peek_sitecustomize/ so the patch hook fires.
-#   4. 2 × H100 80GB available (TP=2 single replica).
+#   4. 2 x H100 80GB available (TP=2 single replica).
 
 set -uo pipefail
 
@@ -51,7 +51,7 @@ mkdir -p "$RESULTS_DIR"
 
 declare -A CELL_GROUPS CELL_PREFIX CELL_DECODE_MIX CELL_MAX_TOKENS CELL_N CELL_WARMUP
 
-# Cell C — chat-like, admission-bound (mirrors W1 cell C at 70B).
+# Cell C -- chat-like, admission-bound (mirrors W1 cell C at 70B).
 CELL_GROUPS[C]=88
 CELL_PREFIX[C]=1500
 CELL_DECODE_MIX[C]=""        # empty -> use --max-tokens (fixed)
@@ -59,7 +59,7 @@ CELL_MAX_TOKENS[C]=128
 CELL_N[C]=1000
 CELL_WARMUP[C]=200
 
-# Cell B — RAG-like, decode-bound (mirrors W2 cell B at 70B).
+# Cell B -- RAG-like, decode-bound (mirrors W2 cell B at 70B).
 CELL_GROUPS[B]=14
 CELL_PREFIX[B]=4096
 CELL_DECODE_MIX[B]="10:128,25:512,30:1024,25:2048,10:4096"

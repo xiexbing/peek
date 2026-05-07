@@ -1,142 +1,144 @@
-# W5 — Heterogeneous chat (no-regress safety test)
+# W5 -- Singleton chat (no-regress safety test)
 
-> Environment: sglang 0.5.9 / vllm 0.19.1, torch 2.9.1, Python 3.12,
-> 1×H100 80GB (bf16). Full spec at `benchmarks/ENVIRONMENT.md`.
-> Rate calibration: per-engine, per-cell. r_sat = highest rate with
-> `errored=0` AND `slo_attainment_pct >= 90%`; `moderate = 0.4 × r_sat`, `heavy = 0.8 × r_sat`. See
-> `benchmarks/ENVIRONMENT.md#rate-calibration-moderate--heavy-per-cell`.
-
-
-**Status: DRAFT.**
+> Paper §4.4 (Tables 19, 20). Environment: sglang 0.5.9 / vllm 0.19.1,
+> torch 2.9.1, Python 3.12, 1xH100 80GB (bf16), `google/gemma-2-27b-it`.
+> Dataset: LMSYS-Chat-1M (English-only, deduped); the singleton driver
+> samples conversations directly from the HF dataset.
 
 ## Purpose
 
-Prove peek **does not regress** on LPM-unfriendly workloads: mixed traffic
-where most requests are singletons (no prefix sharing). Every reviewer's
-first skeptical question will be "what's the downside?" W5 is the answer.
+Prove PEEK **does not regress** on LPM-unfriendly workloads: chat traffic
+where almost every request is a singleton (no prefix sharing). Every
+reviewer's first skeptical question is "what's the downside?" -- W5 is
+the answer.
 
-The dynamic-lane controller exists specifically to protect singletons
-under mixed traffic. W5 tests whether it works.
+The dynamic-lane controller (DL) and the `has_sharing` guard exist
+specifically to protect singletons under low-overlap traffic. W5 tests
+whether they hold up.
 
 ## Workload shape
 
-```
-Mix:
-  40% of requests  : one of G=10 shared system prompts (500 tokens each)
-  60% of requests  : unique prompts, length lognormal(mean=512, sigma≈2)
-                     spanning 32–4096 tokens
+LMSYS-Chat-1M conversations replayed as a Poisson stream. Two cells
+that span the chat prompt-length distribution:
 
-Decode: 64–256 tokens (variable)
-Distribution (within the 40% shared segment): Zipf α=1.0
-Total N: 1500
-Arrival: Poisson
+```
+C_short : prompt = lognormal-truncated to 32-1024 tokens     (typical chat)
+C_long  : prompt = lognormal-truncated to 512-4096 tokens    (long-form / instruction-heavy)
+Decode  : 64-256 tokens (variable, sampled per request)
+N       : 1500 prompts per cell
+warmup  : 100 prompts excluded from metrics
+Arrival : Poisson; per-cell rate set by the W5 calibration probe
 ```
 
-The 40% / 60% split reflects general-purpose chat: some traffic uses a
-system-prompt template; much is ad-hoc. Variation: 20/80 and 60/40 as
-sensitivity.
+Sharing is structurally near-zero: each LMSYS conversation is unique.
+Any cache hit comes from byte-recurring tokens that the engine's hash
+matcher coincidentally reuses (vLLM's APC reports this; SGLang's
+RadixAttention does not, hence the much lower SGLang baseline cache hit
+in Table 19).
 
 ## Production analog
 
-- ChatGPT default (most queries have no custom GPT; some do)
+- ChatGPT default (most queries have no custom GPT)
 - Claude / Gemini default chat
 - Open-source hosted chat (HuggingChat, LMSYS Arena)
-- General-purpose inference API (where tenants have diverse workloads)
-- Any chat platform without enforced prompt templating
+- General-purpose inference API where tenants have diverse prompts
 
-## Key question this answers
+## Policies
 
-**Does peek stay within ±3% of stock LPM on every primary metric when
-sharing structure is weak?**
+The 8-policy lattice from W1/W2 is overkill here -- what matters is
+headline stock-vs-PEEK parity.
 
-If peek regresses here, it's not production-deployable as a general
-scheduler — it would only be usable for known-sharing-heavy workloads,
-which is a much narrower claim.
+| Filesystem ID    | Scheduling      | Eviction              | Role                             |
+| ---------------- | --------------- | --------------------- | -------------------------------- |
+| `lpm_lru`        | stock SGLang LPM | LRU                  | **SGLang baseline**              |
+| `fcfs_lru`       | stock SGLang FCFS | LRU                 | scheduling-axis baseline         |
+| `fcfs_apc_lru`   | stock vLLM FCFS + APC | LRU             | **vLLM baseline**                |
+| `clpm_gm_dl_pe`  | cLPM + GM + DL  | queue-aware (cluster) | **paper-primary, full PEEK**     |
 
-## Policy matrix
+Two claims:
 
-Simpler than W1/W3/W4. The 8-policy lattice is overkill here; what
-matters is headline stock-vs-peek parity.
+1. **`clpm_gm_dl_pe` ≈ baseline on `C_short`** (every metric within
+   noise; almost no opportunity to either improve or hurt).
+2. **`clpm_gm_dl_pe` ≥ baseline on `C_long`** (cluster-aware sort
+   detects weak overlap that LPM's exact-prefix tiebreak misses, so
+   PEEK gets a small but consistent win without regressing TPOT).
 
-| Label | scheduler | eviction | role |
-| -- | --------- | --------- | ---- |
-| lpm_lru | SGLang LPM | LRU | baseline |
-| clpm_gm | cLPM + GM | LRU | does scheduling regress? |
-| clpm_gm_dl | cLPM + GM + DL | LRU | **does dynamic-lane protect singletons?** — primary W5 claim |
-| clpm_gm_pe | cLPM + GM + peek queue-aware | peek queue-aware (cluster mode) | full co-design — should be neutral |
+## Drivers
 
-Four rows. Two claims:
+```bash
+bash benchmarks/w5/run_w5_sglang.sh           # full matrix, 3 seeds
+bash benchmarks/w5/run_w5_vllm.sh             # full matrix, 3 seeds
+```
 
-1. **clpm_gm_dl (with dynamic lane) ≈ lpm_lru** on all metrics → dynamic lane works
-2. **clpm_gm_pe ≈ lpm_lru** on all metrics → full peek in production is safe-default
+Subsets: `POLICIES=lpm_lru CELLS=C_short SEEDS=42 RATES=moderate bash run_w5_sglang.sh`.
 
-Explicit prediction: **clpm_gm may regress here** because group-major without
-dynamic lane can starve singletons. clpm_gm_dl fixes it.
+## Cells and rates
 
-## Cells
+| cell      | prompt range (tok) | decode range (tok) | moderate (req/s) | heavy (req/s) |
+| --------- | ------------------ | ------------------ | ---------------- | ------------- |
+| `C_short` | 32 - 1024          | 64 - 256           | 102              | 120           |
+| `C_long`  | 512 - 4096         | 64 - 256           | 15               | 25            |
 
-Draft — W5 axes are the **sharing ratio**:
-
-| cell | shared % | singleton % | purpose |
-| ---- | -------- | ----------- | ------- |
-| A    | 60       | 40          | moderate sharing — typical SaaS chat |
-| **B** | **40**  | **60**      | **PRIMARY** — canonical heterogeneous |
-| C    | 20       | 80          | singleton-dominated — worst case for LPM-style schedulers |
-
-## Rates
-
-Moderate only (this is a safety test, not a scaling claim):
-
-| cell | moderate |
-| ---- | -------- |
-| A (60/40) | 5 |
-| B (40/60) | 5 |
-| C (20/80) | 5 |
+Rates are calibrated from the W5 probe (`r_sat` with `errored=0` and
+`slo_attainment_pct ≥ 90%`; `moderate = 0.85 x r_sat`, `heavy ≈ r_sat`).
+Override via `RATES=...`.
 
 ## Seeds
 
-Same as W1: 42, 142, 242.
+`42, 142, 242`. Override via `SEEDS=...`.
 
-## Metrics that matter here
+> **Note (paper Table 19 caption):** the published SGLang `C_long` row
+> averages **seed 242 only** because the other two seeds saturated below
+> the calibrated rate; `compare_to_paper.py` honours that seed selection
+> when verifying SGLang `C_long`. The paper's vLLM `C_long` row and both
+> `C_short` rows use 3-seed means.
 
-Standard set. Focus on **per-class metrics** (shared-segment vs
-singleton-segment) as well as aggregate:
+## Aggregation
 
-- Singleton TTFT p50 / p99 — must not regress
-- Singleton goodput — must not regress
-- Shared-segment metrics — may improve (peek's normal advantage)
-- Aggregate metrics — must be ≈ stock (within ±3%)
+```bash
+python3 benchmarks/w5/aggregate.py            # summary.csv + aggregated.csv + delta.csv
+python3 benchmarks/w5/compare_to_paper.py     # vs Tables 19 (SGLang) and 20 (vLLM)
+```
 
-## What we need to build
+`compare_to_paper.py` returns exit 0 if every observed metric is within
+the configurable tolerance (default ±20%) of the paper headline value.
 
-- **Mixed-distribution workload generator** — partial existing
-  infrastructure (`bench_shared_prompts.py` does shared-only; needs a
-  knob to inject a singleton fraction with lognormal prompt length)
-- **Per-class metric aggregation** — split by "which class was this req"
-  at report time
+## Pre-registered predictions (heavy load)
 
-## Pre-registered predictions
-
-| metric | clpm_gm vs lpm_lru | **clpm_gm_dl vs lpm_lru** | clpm_gm_pe vs lpm_lru |
-| --- | --- | --- | --- |
-| Aggregate goodput | −3% to +3% | **within ±2%** | within ±3% |
-| Singleton TTFT p99 | possibly worse (+5 to +15%) | **within ±3%** | within ±3% |
-| Shared-segment TPOT p99 | same as W1 | same as W1 | same as W1 |
-| SLO attainment | possibly lower | **within ±2 pp** | within ±2 pp |
+| metric                     | C_short                     | C_long                      |
+| -------------------------- | --------------------------- | --------------------------- |
+| Aggregate throughput       | within ±3%                  | within ±3% (or PEEK higher) |
+| Mean TTFT                  | within ±5%                  | PEEK 5-15% lower            |
+| Mean TPOT                  | within ±2%                  | within ±2%                  |
+| Cache hit (SGLang)         | within ±2 pp                | PEEK ≥ baseline             |
 
 ## Falsification
 
-- If **clpm_gm_dl regresses beyond ±3% on any primary metric in W5 cell B**, dynamic
-  lane doesn't do its job. The paper needs to either:
-  - Tune dyn's parameters (SLO budget, EMA alpha, floor/ceiling)
-  - Drop the "general-purpose safe" claim and limit peek to shared-sharing
-    deployments
-- If **clpm_gm and clpm_gm_dl look the same (both regress OR both don't)**, dynamic lane
-  is either always-needed-and-works or always-unnecessary. Either is a
-  valid finding but changes the narrative.
+- If **`clpm_gm_dl_pe` regresses beyond ±3% on aggregate throughput
+  or mean TPOT in either cell**, the dynamic-lane controller is not
+  protecting singletons under low-overlap traffic -- the paper's
+  "general-purpose safe-default" claim has to be narrowed to
+  shared-sharing-heavy deployments.
+- If **`clpm_gm_dl_pe` ≈ baseline on both cells with no improvement
+  at all on `C_long`**, cluster-aware sort fails to detect the weak
+  overlap that the paper claims it captures -- W5 still passes the
+  safety bar but loses its positive sub-claim.
 
-## Status
+## Layout
 
-Draft. Workload generator needs a small extension. No urgent timeline —
-W5 runs last (after W1/W3/W4 confirm peek's positive claims; W5 seals
-the "doesn't hurt" story).
+```
+benchmarks/w5/
+├── README.md             (this file)
+├── run_w5_sglang.sh      driver: gemma-2-27b-it on SGLang
+├── run_w5_vllm.sh        driver: gemma-2-27b-it on vLLM (FCFS+APC)
+├── aggregate.py          summary CSVs across seeds
+├── compare_to_paper.py   verify against paper Tables 19, 20
+└── results/              populated by drivers (gitignored)
+    └── seed_<seed>/
+        └── cell_<cell>/
+            └── rate_<rate>/
+                ├── <policy>.json        bench output
+                ├── _run_<policy>.log    bench stdout/err
+                ├── _server_<policy>.log engine stdout/err
+                └── _metrics_{pre,post}_<policy>.prom (SGLang)
+```

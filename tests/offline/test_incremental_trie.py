@@ -128,7 +128,7 @@ class TestTrieRemove(unittest.TestCase):
         self.assertEqual(trie._num_prompts, 1)
 
     def test_remove_one_of_duplicates_at_leaf(self):
-        """Two prompts at same leaf — remove one, other stays."""
+        """Two prompts at same leaf -- remove one, other stays."""
         trie = PrefixTrie()
         trie.insert([1, 2, 3], 0)
         trie.insert([1, 2, 3], 1)
@@ -149,7 +149,7 @@ class TestTrieRemove(unittest.TestCase):
         self.assertEqual(coverage, 1.0)
         self.assertEqual(max_group, 5)
 
-        # Remove 3 entries — only 2 remain sharing
+        # Remove 3 entries -- only 2 remain sharing
         for i in range(3):
             trie.remove(shared + [1000 + i], i)
 
@@ -266,7 +266,7 @@ class TestDfsGroupKeys(unittest.TestCase):
         trie.insert([4, 5, 6], 1)
         keys = trie.dfs_group_keys()
         self.assertEqual(len(keys), 2)
-        # DFS visits in insertion order → [1,2,3] before [4,5,6]
+        # DFS visits in insertion order -> [1,2,3] before [4,5,6]
         self.assertEqual(keys[0], (1, 2, 3))
         self.assertEqual(keys[1], (4, 5, 6))
 

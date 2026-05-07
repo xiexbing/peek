@@ -8,7 +8,7 @@
 #                  --worker-urls http://127.0.0.1:31000 http://127.0.0.1:31001
 #
 # Bench client hits the router at port 30000. Cache hits land in the OpenAI
-# response usage block (`prompt_tokens_details.cached_tokens`) — vllm v1
+# response usage block (`prompt_tokens_details.cached_tokens`) -- vllm v1
 # populates this when prefix caching is on, so the bench's existing parser
 # captures hit-rate without code changes.
 #

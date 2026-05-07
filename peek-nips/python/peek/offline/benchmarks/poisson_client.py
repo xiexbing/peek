@@ -139,7 +139,7 @@ class RunResult:
 
 
 # ---------------------------------------------------------------------------
-# Poisson client — backend-agnostic
+# Poisson client -- backend-agnostic
 # ---------------------------------------------------------------------------
 
 async def _send_one_sglang(
@@ -361,7 +361,7 @@ async def run_poisson_peek(
     def dispatch_fn(req: dict) -> None:
         """Send a tagged request concurrently.
 
-        remove() is handled by PeekEngine.run() directly (step 9) —
+        remove() is handled by PeekEngine.run() directly (step 9) --
         zero delay, same process.  No client-side callback needed.
         """
         orig_id = req.get("id", "")

@@ -18,7 +18,7 @@ sglang's `SchedulePolicy._compute_prefix_matches` (schedule_policy.py) uses two
 things to sort the waiting queue by longest prefix match:
 
   1. The *main* tree_cache, for "how much of this request's prefix is already in
-     the KV cache?" We don't exercise that here — it needs a live allocator.
+     the KV cache?" We don't exercise that here -- it needs a live allocator.
   2. An in-batch `waiting_queue_radix_tree` (RadixCache.create_simulated()),
      rebuilt from scratch every scheduling pass. For each request in arrival
      order, it match_prefix's against the tree-so-far, then inserts (unless
@@ -29,9 +29,9 @@ order, peek's per-request in-batch match should equal sglang's, and the
 deprioritized set should be identical.
 
 These tests:
-  * `test_inbatch_parity_*` — run the same arrival sequence through both and
+  * `test_inbatch_parity_*` -- run the same arrival sequence through both and
     assert per-rid match length + deprioritize set match.
-  * `test_inbatch_perf_many_passes` — simulate many scheduling passes over a
+  * `test_inbatch_perf_many_passes` -- simulate many scheduling passes over a
     stable waiting queue and time both approaches. Peek should be markedly
     faster because it does not rebuild.
 """
@@ -96,7 +96,7 @@ def make_workload(
 
 # ---------------------------------------------------------------------------
 # sglang in-batch logic, extracted. Mirrors the else-branch of
-# SchedulePolicy._compute_prefix_matches — the part that uses the
+# SchedulePolicy._compute_prefix_matches -- the part that uses the
 # waiting-queue radix tree.
 # ---------------------------------------------------------------------------
 
@@ -152,7 +152,7 @@ def test_inbatch_parity(n_requests: int, seed: int) -> None:
     assert s_dep == p_dep
 
 def test_inbatch_parity_identical_prefixes() -> None:
-    # Many duplicates of the same long prefix — exercises repeated splits.
+    # Many duplicates of the same long prefix -- exercises repeated splits.
     prefix = tuple(range(40))
     reqs = [Req(rid=i + 1, tokens=prefix + (i,)) for i in range(100)]
     s_lens, s_dep = sglang_inbatch_pass(reqs)
@@ -161,7 +161,7 @@ def test_inbatch_parity_identical_prefixes() -> None:
     assert s_dep == p_dep
 
 def test_inbatch_parity_strict_prefix_chain() -> None:
-    # rid i's tokens are a strict prefix of rid i+1's — the partial-edge case.
+    # rid i's tokens are a strict prefix of rid i+1's -- the partial-edge case.
     reqs = [Req(rid=i + 1, tokens=tuple(range(1, i + 2))) for i in range(30)]
     s_lens, s_dep = sglang_inbatch_pass(reqs)
     p_lens, p_dep = peek_inbatch_pass(reqs)
@@ -214,15 +214,15 @@ def test_inbatch_perf_many_passes(capsys: pytest.CaptureFixture) -> None:
 
     with capsys.disabled():
         print(
-            f"\n[{n_requests} reqs × {n_passes} passes]  "
+            f"\n[{n_requests} reqs x {n_passes} passes]  "
             f"peek arrival(amortized once): {peek_arrival_ms:.2f} ms  |  "
-            f"sglang rebuild×M: {sg_total_ms:.2f} ms  |  "
-            f"peek query×M: {pk_total_ms:.2f} ms  |  "
-            f"speedup: {speedup:.1f}×"
+            f"sglang rebuildxM: {sg_total_ms:.2f} ms  |  "
+            f"peek queryxM: {pk_total_ms:.2f} ms  |  "
+            f"speedup: {speedup:.1f}x"
         )
 
     # Sanity: peek per-pass should beat sglang per-pass. Use a conservative
-    # margin so we don't flake on noisy CI — anything less than "clearly
+    # margin so we don't flake on noisy CI -- anything less than "clearly
     # faster" is still a regression worth investigating.
     assert pk_total_ms < sg_total_ms, (
         f"peek per-pass ({pk_total_ms:.2f} ms) should be faster than "

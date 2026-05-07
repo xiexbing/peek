@@ -1,7 +1,7 @@
-# W2 — Long-document RAG (decode-dominant co-design)
+# W2 -- Long-document RAG (decode-dominant co-design)
 
 > Paper §4.2. Environment: sglang 0.5.9 / vllm 0.19.1, torch 2.9.1,
-> Python 3.12, 1×H100 80GB (bf16), `Qwen/Qwen2.5-32B-Instruct`.
+> Python 3.12, 1xH100 80GB (bf16), `Qwen/Qwen2.5-32B-Instruct`.
 
 ## Purpose
 
@@ -13,22 +13,22 @@ super-additivity is strongest.
 ## Workload shape
 
 ```
-G        = 40 documents × 8192-token prefix
+G        = 40 documents x 8192-token prefix
 Queries  : 256-token chat-over-doc, 1 query per request
 Sampling : Zipf α=1.0 (hot documents dominate)
 Decode   : DECODE_MIX = "10:128, 25:512, 30:1024, 25:2048, 10:4096"
-           (mean ≈ 1460 tokens — covers structured short responses,
+           (mean ≈ 1460 tokens -- covers structured short responses,
             normal RAG answers, long-form RAG/code, synthesis,
             reasoning-adjacent)
 mem_frac : 0.88 (production-realistic)
-KV footprint : 328K prefix tokens ≈ 7× arena (eviction always firing);
+KV footprint : 328K prefix tokens ≈ 7x arena (eviction always firing);
                active decode KV grows linearly with decode length
 N        : 500
 ```
 
 ## Cells
 
-Per paper Tables 6, 13–14 — moderate and heavy load on the same workload
+Per paper Tables 6, 13-14 -- moderate and heavy load on the same workload
 shape, sampled to hit two different sustained queue depths.
 
 ## Policies
@@ -53,7 +53,7 @@ The paper's primary configuration is `clpm_gm_dl_pe`.
 
 ```bash
 bash benchmarks/w2/run_w2_sglang.sh           # full matrix, 3 seeds
-# (vllm side: see paper §4.2 — uses the same client + a vllm server;
+# (vllm side: see paper §4.2 -- uses the same client + a vllm server;
 #  reachable via the W1 vllm driver with W2 cell parameters, or write
 #  a thin wrapper if you need a dedicated entry point.)
 ```
@@ -62,4 +62,4 @@ Subsets: `POLICIES=lpm_lru CELLS=B SEEDS=42 RATES=heavy bash run_w2_sglang.sh`.
 
 ## Seeds
 
-42, 142, 242. Override via `SEEDS=…`.
+42, 142, 242. Override via `SEEDS=...`.

@@ -16,7 +16,7 @@
 
 Verifies:
 1. The poisson client can load workloads independently (no server needed).
-2. Request generation is deterministic — two runs with the same params
+2. Request generation is deterministic -- two runs with the same params
    produce byte-identical request sequences.
 """
 

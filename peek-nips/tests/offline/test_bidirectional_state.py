@@ -177,7 +177,7 @@ class TestServerReadsPendingCounts(unittest.TestCase):
         #   future_refs = max(0, 20 - 32) = 0
         #
         # The client signal correctly tells the server to DEFER this
-        # group — it has heavy future demand, keep its prefix cached.
+        # group -- it has heavy future demand, keep its prefix cached.
         future_refs_with_client = max(0, client_pending - 32)
         future_refs_without = max(0, 20 - 32)
         self.assertEqual(future_refs_with_client, 68)
@@ -185,7 +185,7 @@ class TestServerReadsPendingCounts(unittest.TestCase):
 
 
 class TestTimingSemantics(unittest.TestCase):
-    """Verify that the client→server channel has correct timing."""
+    """Verify that the client->server channel has correct timing."""
 
     def setUp(self):
         CacheStateStore._instance = None
@@ -195,7 +195,7 @@ class TestTimingSemantics(unittest.TestCase):
         CacheStateStore._instance = None
 
     def test_multiple_submits_before_server_read(self):
-        """Multiple submits between server cycles — server sees latest."""
+        """Multiple submits between server cycles -- server sees latest."""
         dispatched = []
         d = PeekDispatcher(send_fn=lambda r: dispatched.append(r))
 
@@ -206,7 +206,7 @@ class TestTimingSemantics(unittest.TestCase):
         d.submit({"id": "r-1", "token_ids": prefix + [1]})
         d.submit({"id": "r-2", "token_ids": prefix + [2]})
 
-        # Server reads once — sees count=3 (latest), not count=1
+        # Server reads once -- sees count=3 (latest), not count=1
         pending = self.store.get_client_pending()
         ghash = list(pending.keys())[0]
         self.assertEqual(pending[ghash], 3)
@@ -230,7 +230,7 @@ class TestTimingSemantics(unittest.TestCase):
         self.assertEqual(pending[ghash], 1)
 
     def test_server_reads_are_independent(self):
-        """Each server read gets a fresh snapshot — not cumulative."""
+        """Each server read gets a fresh snapshot -- not cumulative."""
         dispatched = []
         d = PeekDispatcher(send_fn=lambda r: dispatched.append(r))
 
@@ -244,7 +244,7 @@ class TestTimingSemantics(unittest.TestCase):
 
         d.submit({"id": "r-1", "token_ids": prefix + [1]})
 
-        # Second read — fresh snapshot, count=2
+        # Second read -- fresh snapshot, count=2
         p2 = self.store.get_client_pending()
         self.assertEqual(list(p2.values()), [2])
 

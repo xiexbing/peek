@@ -2,10 +2,10 @@
 """W1 results aggregator.
 
 Walks results/seed_<S>/cell_<X>/rate_<R>/<policy>.json and produces:
-  - summary.csv     : one row per completed run (seed × cell × rate × policy)
-  - aggregated.csv  : median / mean / stdev across seeds per (cell × rate × policy)
+  - summary.csv     : one row per completed run (seed x cell x rate x policy)
+  - aggregated.csv  : median / mean / stdev across seeds per (cell x rate x policy)
   - delta.csv       : relative improvement (%) of each non-baseline policy vs lpm_lru
-                     per (cell × rate), using median across seeds
+                     per (cell x rate), using median across seeds
 """
 
 from __future__ import annotations
@@ -17,6 +17,9 @@ import json
 import os
 import statistics
 from collections import defaultdict
+from pathlib import Path
+
+W1 = Path(__file__).resolve().parent
 
 
 METRIC_SPECS = [
@@ -68,10 +71,8 @@ def parse_path(path: str) -> tuple:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--results-dir",
-                    default="/workspace/peek/benchmarks/w1/results")
-    ap.add_argument("--out-dir",
-                    default="/workspace/peek/benchmarks/w1")
+    ap.add_argument("--results-dir", default=str(W1 / "results"))
+    ap.add_argument("--out-dir", default=str(W1))
     ap.add_argument("--baseline", default="lpm_lru",
                     help="policy name used as reference in delta.csv (default lpm_lru)")
     args = ap.parse_args()
@@ -169,9 +170,9 @@ def main() -> None:
         w.writeheader()
         w.writerows(delta_rows)
 
-    print(f"wrote {len(rows)} raw rows       → {out_raw}")
-    print(f"wrote {len(agg_rows)} agg rows   → {out_agg}")
-    print(f"wrote {len(delta_rows)} deltas   → {out_delta}")
+    print(f"wrote {len(rows)} raw rows       -> {out_raw}")
+    print(f"wrote {len(agg_rows)} agg rows   -> {out_agg}")
+    print(f"wrote {len(delta_rows)} deltas   -> {out_delta}")
 
 
 if __name__ == "__main__":

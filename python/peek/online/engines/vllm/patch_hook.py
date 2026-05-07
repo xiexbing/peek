@@ -54,7 +54,7 @@ Caveats:
     demand_recency / demand_cluster / demand_decay variants in peek's
     sglang path rely on per-node last_access_time and ancestor walks
     that don't translate to vllm's hash-based block model.
-  - `PEEK_ONLINE_EVICTION_SCAN_CAP` (default 4×N, min 256) bounds the per-call
+  - `PEEK_ONLINE_EVICTION_SCAN_CAP` (default 4xN, min 256) bounds the per-call
     free-queue scan to keep overhead bounded on large pools.
 """
 
@@ -69,8 +69,8 @@ def _flag(name: str) -> bool:
     return os.environ.get(name, "").lower() in ("1", "true", "yes", "on")
 
 
-# Legacy back-compat: PEEK_ONLINE_ENABLED=1 → scheduler + (tried) eviction,
-# PEEK_ONLINE_ENABLED=full → same (no distinction on vllm since we have no LPM-full
+# Legacy back-compat: PEEK_ONLINE_ENABLED=1 -> scheduler + (tried) eviction,
+# PEEK_ONLINE_ENABLED=full -> same (no distinction on vllm since we have no LPM-full
 # variant beyond peek_lpm).
 _LEGACY = os.environ.get("PEEK_ONLINE_ENABLED", "").lower()
 _LEGACY_ANY = _LEGACY in ("1", "true", "yes", "on", "full")
@@ -106,7 +106,7 @@ _PHASE_DUMP_PATH_TEMPLATE = os.environ.get(
 _PROFILE = _flag("PEEK_ONLINE_PROFILE")
 _VALIDATE = _flag("PEEK_ONLINE_VALIDATE")
 
-# Per-call cap on free-queue scan when picking eviction victims. None →
+# Per-call cap on free-queue scan when picking eviction victims. None ->
 # default to max(4*N, _MIN_SCAN_CAP). Caps keep overhead bounded even when
 # the free queue is enormous.
 _EVICTION_SCAN_CAP = os.environ.get("PEEK_ONLINE_EVICTION_SCAN_CAP")
@@ -114,13 +114,13 @@ _EVICTION_SCAN_CAP = int(_EVICTION_SCAN_CAP) if _EVICTION_SCAN_CAP else 0
 _EVICTION_MIN_SCAN_CAP = 256
 
 # Eviction priority formula. Mirrors sglang's PEEK_ONLINE_EVICTION_MODE knob:
-#   plain    — priority = demand                                 (binary protect)
-#   cluster  — priority = demand × (1 + max_chain_depth)         (depth-of-sharing)
-#   recency  — priority = demand − W × age_seconds                (linear aging)
-#   decay    — priority = demand × exp(−age_seconds / τ)          (exponential aging)
+#   plain    -- priority = demand                                 (binary protect)
+#   cluster  -- priority = demand x (1 + max_chain_depth)         (depth-of-sharing)
+#   recency  -- priority = demand − W x age_seconds                (linear aging)
+#   decay    -- priority = demand x exp(−age_seconds / τ)          (exponential aging)
 #
 # `cluster` needs `_block_hash_max_depth[h]` (deepest position in any pending
-# rid's prefix chain) — maintained on _bump_rid, cleared on demand-zero.
+# rid's prefix chain) -- maintained on _bump_rid, cleared on demand-zero.
 # `recency` and `decay` need a per-block last-access timestamp that vllm
 # doesn't track natively. Peek fabricates it by patching `BlockPool.touch`
 # (cache-hit stamps) and `BlockPool.cache_full_blocks` (initial-cache stamps).
@@ -182,7 +182,7 @@ def _install() -> None:
 
     peek_tree = PendingTree()
 
-    # rid (vllm uses str) → u64 interned rid for peek.
+    # rid (vllm uses str) -> u64 interned rid for peek.
     rid_interner: dict[str, int] = {}
     _counter = [0]
 
@@ -198,10 +198,10 @@ def _install() -> None:
     _last_rids: set = set()
     # Per-rid phase timings keyed by str rid; same schema as sglang hook.
     _phase_timings: dict = {}
-    # Eviction inverted index: cached block hash → number of pending rids
+    # Eviction inverted index: cached block hash -> number of pending rids
     # whose prefix passes through that block. Maintained by sync alongside
     # the PendingTree. Also a per-rid hash list so discard can reverse it.
-    # Keyed by raw BlockHash (bytes), not BlockHashWithGroupId — that's what
+    # Keyed by raw BlockHash (bytes), not BlockHashWithGroupId -- that's what
     # Request.block_hashes contains and what we'd recover from a cached
     # block via get_block_hash(blk.block_hash).
     _block_hash_demand: dict = {}
@@ -214,7 +214,7 @@ def _install() -> None:
     # (hash no longer cached anywhere) are harmless dict bloat; they only
     # matter if a future block re-uses the same hash, in which case the
     # stale timestamp is *older* than the new block, so we'd over-evict
-    # the new block — bounded harm (still a valid LRU-ish choice).
+    # the new block -- bounded harm (still a valid LRU-ish choice).
     _block_hash_last_access: dict = {}
     _rid_to_hashes: dict[int, list] = {}
 
@@ -238,7 +238,7 @@ def _install() -> None:
     def _drop_rid(rid_int: int) -> None:
         """Decrement demand counts for an rid leaving the waiting set.
         In cluster mode also drop the depth entry when demand hits 0
-        (lazy invalidation — depth can be stale-high while demand > 0)."""
+        (lazy invalidation -- depth can be stale-high while demand > 0)."""
         snap = _rid_to_hashes.pop(rid_int, None)
         if not snap:
             return
@@ -345,7 +345,7 @@ def _install() -> None:
             if not _vstats["first_violation_logged"]:
                 _vstats["first_violation_logged"] = True
                 _log.warning(
-                    "peek VALIDATE: first sync violation — missing=%d extra=%d "
+                    "peek VALIDATE: first sync violation -- missing=%d extra=%d "
                     "token_mm=%d wq_size=%d peek_tracked=%d",
                     missing, extra, token_mm, len(wq_list),
                     len(_seen_this_session),
@@ -390,7 +390,7 @@ def _install() -> None:
             return
         wq = scheduler.waiting
         # Only FCFS queue is a plain deque we can reorder. PriorityRequestQueue
-        # carries user-set priority semantics we must not break — skip.
+        # carries user-set priority semantics we must not break -- skip.
         if not isinstance(wq, FCFSRequestQueue):
             if _PROFILE:
                 _prof["calc_priority_calls"] += 1
@@ -416,7 +416,7 @@ def _install() -> None:
         # lpm_integration's fallback path (len(pi)) still works if our
         # main_hits dict is missing an entry. We attach a property-like
         # dynamic attribute only when necessary; lpm_integration reads
-        # r.prefix_indices — a bare list of length=main_hit is enough.
+        # r.prefix_indices -- a bare list of length=main_hit is enough.
         main_hits_by_str = _compute_main_hits(scheduler, wq_list)
         rid_to_int = {r.request_id: _intern(r.request_id) for r in wq_list}
         # Convert str-keyed dict to int-keyed for lpm_integration.
@@ -517,7 +517,7 @@ def _install() -> None:
     _orig_finish_requests = getattr(Scheduler, "finish_requests", None)
     if _orig_finish_requests is not None:
         def _patched_finish_requests(self, request_ids, *args, **kwargs):
-            # Forward the call verbatim — vllm's signature includes a
+            # Forward the call verbatim -- vllm's signature includes a
             # required `finished_status`, but other versions / patches may
             # add params; *args/**kwargs is the safe pass-through.
             result = _orig_finish_requests(
@@ -553,7 +553,7 @@ def _install() -> None:
                     _prof["evict_fallback"] += 1
                     _prof["evict_ns"] += _time.perf_counter_ns() - te
                 return _orig_get_new_blocks(self, num_blocks)
-            # Cheap availability check up front — match stock behavior.
+            # Cheap availability check up front -- match stock behavior.
             if num_blocks > self.get_num_free_blocks():
                 if _PROFILE:
                     _prof["evict_calls"] += 1
@@ -561,7 +561,7 @@ def _install() -> None:
                     _prof["evict_ns"] += _time.perf_counter_ns() - te
                 return _orig_get_new_blocks(self, num_blocks)
             # If we have no demand signal at all, defer to stock LRU. Pure
-            # stock behavior with one extra branch — preserves perf parity
+            # stock behavior with one extra branch -- preserves perf parity
             # when peek isn't holding any pending state yet.
             if not _block_hash_demand:
                 if _PROFILE:
@@ -603,7 +603,7 @@ def _install() -> None:
                             age = (_time.time() - la) if la else 0.0
                             # int() to keep priority an integer for ordering;
                             # negative values (very old, low demand) sort
-                            # ahead of positive ones — exactly what we want.
+                            # ahead of positive ones -- exactly what we want.
                             priority = int(d - _EVICTION_RECENCY_W * age)
                         elif _EVICTION_MODE == "decay":
                             la = _block_hash_last_access.get(raw)
@@ -613,7 +613,7 @@ def _install() -> None:
                                 _math.exp(-age / _EVICTION_DECAY_TAU)
                                 if _EVICTION_DECAY_TAU > 0 else 1.0
                             )
-                            # Multiply by 1000 so float→int sort is stable
+                            # Multiply by 1000 so float->int sort is stable
                             # at small priority differences.
                             priority = int(d * decay * 1000)
                         else:  # plain
@@ -629,7 +629,7 @@ def _install() -> None:
                 picked.extend(b for _, _, b in low_demand[:need])
 
             if len(picked) < num_blocks:
-                # Scan cap was too tight. Bail to stock behavior — peek's
+                # Scan cap was too tight. Bail to stock behavior -- peek's
                 # hint isn't binding when we can't fully cover the request.
                 if _PROFILE:
                     _prof["evict_calls"] += 1
@@ -661,7 +661,7 @@ def _install() -> None:
             return picked
 
         # Expose internal dicts on the patched function for test/debug.
-        # Production code should never read these — they're install-scope
+        # Production code should never read these -- they're install-scope
         # state, exposed only because there's no other way to introspect
         # peek's eviction-side state from outside the closure.
         _peek_get_new_blocks._block_hash_demand = _block_hash_demand
@@ -676,7 +676,7 @@ def _install() -> None:
         # Stamp last-access timestamps for recency / decay modes by patching
         # the two BlockPool entry points where a block transitions to "fresh":
         #   - touch(blocks): a previously-free cached block was hit (ref_cnt
-        #     0→1). Real cache-hit event.
+        #     0->1). Real cache-hit event.
         #   - cache_full_blocks(...): a newly-filled block enters the cache
         #     for the first time. Counts as a fresh access.
         if _EVICTION_NEEDS_LAST_ACCESS:
@@ -721,7 +721,7 @@ def _install() -> None:
         _CHECK_THRESHOLD, _DEPRIO_THRESHOLD, _LPM_FB_THRESHOLD,
     )
 
-    # Periodic dumps (phase, validate, profile) — same pattern as sglang hook.
+    # Periodic dumps (phase, validate, profile) -- same pattern as sglang hook.
     if _PHASE_TRACKING:
         import threading as _pthreading
         import json as _pjson
@@ -740,7 +740,7 @@ def _install() -> None:
 
         _pt = _pthreading.Thread(target=_phase_dump_loop, daemon=True)
         _pt.start()
-        _log.warning("peek: phase-tracking active; dump → %s", _phase_path)
+        _log.warning("peek: phase-tracking active; dump -> %s", _phase_path)
 
     if _VALIDATE:
         import threading as _vthreading

@@ -16,7 +16,7 @@
 
 Plugs into `sglang.srt.mem_cache.evict_policy.EvictionStrategy`. For each
 candidate eviction node, computes the number of pending requests whose
-tokens start with that node's path and uses that as the primary sort key —
+tokens start with that node's path and uses that as the primary sort key --
 nodes with zero pending demand evict first, LRU breaks ties within a bucket.
 
 Integration:
@@ -46,14 +46,14 @@ _PROFILE = os.environ.get("PEEK_ONLINE_PROFILE", "").lower() in ("1", "true", "y
 _DEBUG = os.environ.get("PEEK_ONLINE_EVICTION_DEBUG", "").lower() in ("1", "true", "yes", "on")
 
 # Eviction policy variants (PEEK_ONLINE_EVICTION_MODE):
-#   plain    — (demand×depth, last_access). Default.
-#   cluster  — (demand×depth × (1 + levels), last_access). Extra multiplier
-#              for deeper ancestor chains — favors longer sharing structures.
+#   plain    -- (demandxdepth, last_access). Default.
+#   cluster  -- (demandxdepth x (1 + levels), last_access). Extra multiplier
+#              for deeper ancestor chains -- favors longer sharing structures.
 #              Paper §3.2 primary mode; the cLPM+GM+DL+PE config uses this.
-#   recency  — (demand×depth − W·age_sec, last_access). Additive recency
+#   recency  -- (demandxdepth − W.age_sec, last_access). Additive recency
 #              penalty; older nodes lose demand-protection quickly.
 #              PEEK_ONLINE_EVICTION_RECENCY_W (default 100) tokens-at-risk/sec.
-#   decay    — (demand×depth × exp(-age/tau), last_access). Multiplicative
+#   decay    -- (demandxdepth x exp(-age/tau), last_access). Multiplicative
 #              exponential decay. PEEK_ONLINE_EVICTION_DECAY_TAU (default 30s).
 #
 # Legacy names `demand_cluster`, `demand_recency`, `demand_decay` are
@@ -81,7 +81,7 @@ _DEBUG_PATH = os.environ.get(
 )
 _prof = {"gp_calls": 0, "gp_ns": 0, "path_calls": 0, "path_ns": 0, "demand_calls": 0, "demand_ns": 0}
 
-# Eviction diagnostics — count of get_priority calls bucketed by pending_demand
+# Eviction diagnostics -- count of get_priority calls bucketed by pending_demand
 # value, plus counts of empty-path (root) and how often peek's signal differs
 # from pure LRU (i.e., demand > 0 protecting a node LRU would pick).
 _diag = {
@@ -89,7 +89,7 @@ _diag = {
     "first_call_ts": None,
     "last_call_ts": None,
     "gp_calls": 0,
-    "gp_root_or_empty_path": 0,     # path was empty → demand forced to 0 regardless
+    "gp_root_or_empty_path": 0,     # path was empty -> demand forced to 0 regardless
     "gp_demand_zero": 0,             # path non-empty but demand=0 (= LRU fallback)
     "gp_demand_gt_zero": 0,          # path non-empty, demand>=1 (signal active)
     "gp_demand_by_bucket": {},       # bucket_label -> count
@@ -101,9 +101,9 @@ _diag = {
 
 
 def _bump_bucket(value: int) -> None:
-    # Bucket the token-weighted value (demand × depth). Buckets align with
+    # Bucket the token-weighted value (demand x depth). Buckets align with
     # meaningful prefill-cost scales: <100 tokens saved is negligible,
-    # >10000 means a big cluster × long prefix.
+    # >10000 means a big cluster x long prefix.
     if value == 0:
         bkt = "0"
     elif value < 100:
@@ -133,7 +133,7 @@ def _dump_diag() -> None:
 if _DEBUG:
     atexit.register(_dump_diag)
 
-    # Periodic dump thread — atexit misses subprocesses killed via SIGKILL
+    # Periodic dump thread -- atexit misses subprocesses killed via SIGKILL
     # (which is what our driver does to sglang). Dump every 2 s to a
     # PID-suffixed file so we capture the scheduler subprocess too.
     import threading as _ethreading
@@ -151,13 +151,13 @@ if _DEBUG:
 class PeekDemandStrategy:
     """sglang-compatible EvictionStrategy that prefers to evict low-demand
     cache nodes first. Does not inherit from EvictionStrategy so it can be
-    used without importing sglang at module load — duck-typing is enough."""
+    used without importing sglang at module load -- duck-typing is enough."""
 
     def __init__(self, tree: PendingTree) -> None:
         self.tree = tree
 
     def get_priority(self, node) -> Tuple[int, float]:
-        """Returns (subtree_demand, last_access_time) — sglang's heap evicts
+        """Returns (subtree_demand, last_access_time) -- sglang's heap evicts
         the lowest tuple first.
 
         `subtree_demand` = # pending rids whose tokens PASS THROUGH this cache
@@ -173,7 +173,7 @@ class PeekDemandStrategy:
         # sglang's eviction only considers LEAVES. A leaf's full path is
         # unique to one completed request (shared_prefix + that request's
         # unique question + answer tail), so pending_demand(leaf_full_path)
-        # is almost always 0 → peek's signal is dead at leaves.
+        # is almost always 0 -> peek's signal is dead at leaves.
         #
         # Fix: take the max pending_demand over the leaf's ancestor paths.
         # An ancestor with demand N means N pending rids want that subtree
@@ -185,7 +185,7 @@ class PeekDemandStrategy:
 
         # Compute mode-specific priority. Higher = more protected; sglang
         # heap evicts the lowest first. `demand` above is already
-        # demand_count × path_len (tokens-at-risk). Variants layer on top.
+        # demand_count x path_len (tokens-at-risk). Variants layer on top.
         if _EVICTION_MODE == "plain":
             priority = demand
         elif _EVICTION_MODE == "cluster":
@@ -232,14 +232,14 @@ def _eviction_profile() -> dict:
 
 def _max_ancestor_demand(node, tree) -> Tuple[int, int, int]:
     """Walk from `node` up to root and find the ancestor with the maximum
-    "tokens-at-risk" = pending_demand(ancestor_path) × len(ancestor_path).
+    "tokens-at-risk" = pending_demand(ancestor_path) x len(ancestor_path).
 
     Returns (max_value, path_len_at_max, levels_walked).
 
-    Why token-weighted (demand × depth) instead of raw demand:
+    Why token-weighted (demand x depth) instead of raw demand:
       Raw `pending_demand` counts rids that would benefit from keeping a
       cached prefix. But "benefit" should weight by how much GPU work each
-      rid avoids — which is proportional to the prefix LENGTH that would
+      rid avoids -- which is proportional to the prefix LENGTH that would
       otherwise be re-prefilled. A 10-rid cluster with a 2048-token prefix
       saves 20480 tokens of prefill if protected; a 50-rid cluster with
       only a 32-token shared prefix saves 1600 tokens. Protecting the
@@ -300,7 +300,7 @@ def _node_path_tokens(node) -> list[int]:
             break
         segments.append(list(tokens))
         cur = cur.parent
-    # segments are leaf → root; reverse and flatten.
+    # segments are leaf -> root; reverse and flatten.
     out: list[int] = []
     for seg in reversed(segments):
         out.extend(seg)

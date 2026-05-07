@@ -15,15 +15,15 @@
 """Tree construction timing: sglang RadixCache vs peek PendingTree.
 
 Measures the raw cost of *building* each tree from N pending requests. This is
-the per-pass cost sglang pays today — it resets and rebuilds its in-batch
+the per-pass cost sglang pays today -- it resets and rebuilds its in-batch
 waiting_queue_radix_tree every scheduling pass (schedule_policy.py:190).
 
 Two angles:
 
-  1. `test_construction_one_shot` — build from zero at a range of queue sizes.
+  1. `test_construction_one_shot` -- build from zero at a range of queue sizes.
      Reports per-request and total build time for both sides.
 
-  2. `test_construction_amortized_over_lifecycle` — simulate a realistic
+  2. `test_construction_amortized_over_lifecycle` -- simulate a realistic
      arrival/schedule lifecycle (M ticks, steady-state queue). Compare
      cumulative construction cost: sglang rebuilds on every tick; peek only
      pays the per-arrival insert and per-schedule remove.
@@ -111,7 +111,7 @@ def test_construction_one_shot(n: int, capsys: pytest.CaptureFixture) -> None:
             f"({sg_s * 1e6 / n:6.1f} µs/req) | "
             f"peek: {pk_s * 1000:6.2f} ms  "
             f"({pk_s * 1e6 / n:5.1f} µs/req) | "
-            f"{speedup:5.1f}× faster"
+            f"{speedup:5.1f}x faster"
         )
 
     assert pk_s < sg_s, f"peek should be faster: peek={pk_s:.4f}s sglang={sg_s:.4f}s"
@@ -119,8 +119,8 @@ def test_construction_one_shot(n: int, capsys: pytest.CaptureFixture) -> None:
 def test_construction_amortized_over_lifecycle(capsys: pytest.CaptureFixture) -> None:
     """Steady-state queue of ~N, over M scheduling ticks. Each tick:
     some arrivals, some scheduled (removed). Compare:
-      * sglang: rebuild entire tree at each tick → M * N_current inserts.
-      * peek:   insert on arrival, remove on schedule → 2 × (total arrivals).
+      * sglang: rebuild entire tree at each tick -> M * N_current inserts.
+      * peek:   insert on arrival, remove on schedule -> 2 x (total arrivals).
 
     Peek's cumulative tree-construction cost should be far lower.
     """
@@ -153,7 +153,7 @@ def test_construction_amortized_over_lifecycle(capsys: pytest.CaptureFixture) ->
         arrivals_per_tick.append(arrivals)
         current.extend(arrivals)
 
-        # Schedules: remove a batch of 8–32 at random.
+        # Schedules: remove a batch of 8-32 at random.
         n_sched = min(rng.randint(8, 32), len(current))
         scheduled = rng.sample(current, n_sched)
         sched_rids = {r.rid for r in scheduled}
@@ -200,7 +200,7 @@ def test_construction_amortized_over_lifecycle(capsys: pytest.CaptureFixture) ->
             f"  peek    incremental   : {peek_s * 1000:8.2f} ms  "
             f"(~{peek_s * 1e6 / rid_counter:.2f} µs/op)"
         )
-        print(f"  speedup: {speedup:.1f}×")
+        print(f"  speedup: {speedup:.1f}x")
 
     assert peek_s < sglang_s, (
         f"peek lifecycle cost ({peek_s:.4f}s) should be less than "

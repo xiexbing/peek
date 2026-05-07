@@ -17,11 +17,11 @@
 Simulates the full set of waiting_queue mutation events that sglang's scheduler
 performs (see scheduler.py):
 
-  * arrival           — append on new request (_add_request_to_queue)
-  * schedule_success  — bulk remove of can_run_list (line 2126)
-  * priority_abort    — single pop, higher-priority eviction (line 1757)
-  * timeout_abort     — bulk remove, waiting timeout (line 1800)
-  * return_to_queue   — append for preempted/retracted reqs (lines 2131, 2254)
+  * arrival           -- append on new request (_add_request_to_queue)
+  * schedule_success  -- bulk remove of can_run_list (line 2126)
+  * priority_abort    -- single pop, higher-priority eviction (line 1757)
+  * timeout_abort     -- bulk remove, waiting timeout (line 1800)
+  * return_to_queue   -- append for preempted/retracted reqs (lines 2131, 2254)
 
 At every tick we:
   1. Apply a random mix of events to both a ground-truth queue and peek's tree.
@@ -97,14 +97,14 @@ def _assert_state_parity(
         f"size mismatch: peek={len(peek_tree)} queue={len(queue)}"
     )
     sglang_tree = _sglang_rebuild(queue)
-    # Probe with queue members — ensures every real token path is represented.
+    # Probe with queue members -- ensures every real token path is represented.
     for r in queue:
         sg_len = _sglang_match_len(sglang_tree, r.tokens)
         pk_len = peek_tree.match_prefix(list(r.tokens))
         assert pk_len == sg_len, (
             f"match_prefix(queue rid={r.rid}) peek={pk_len} sglang={sg_len}"
         )
-    # Probe with synthetic sequences — covers non-members, partial matches, misses.
+    # Probe with synthetic sequences -- covers non-members, partial matches, misses.
     for _ in range(10):
         sp = rng.choice(system_prompts)
         # Mix: sometimes a shared-prefix probe, sometimes a full random probe.
@@ -218,7 +218,7 @@ def test_lifecycle_state_parity(n_ticks: int, seed: int) -> None:
 
     checks_done = 0
     for tick in range(n_ticks):
-        # Per tick: fire 1–3 events to build up realistic lifecycle pressure.
+        # Per tick: fire 1-3 events to build up realistic lifecycle pressure.
         for _ in range(rng.randint(1, 3)):
             fn = _pick_event(rng)
             fn(queue, peek_tree, running, next_rid, rng, system_prompts) if fn is _apply_arrival \

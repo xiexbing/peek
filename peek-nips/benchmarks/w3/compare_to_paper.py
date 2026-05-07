@@ -43,7 +43,7 @@ DIRMAP = {
     ("vllm",   2): "results_vllm_dp2",
 }
 
-# tolerance on relative delta — single-seed runs can wobble vs 3-seed paper means
+# tolerance on relative delta -- single-seed runs can wobble vs 3-seed paper means
 TOL_PCT = float(os.environ.get("TOL_PCT", "20"))  # green if within tolerance
 
 
@@ -65,7 +65,7 @@ def load_observed(root: Path, engine: str, dp: int, cell: str, policy: str, seed
 
 def fmt_delta(obs, pap):
     if obs is None or pap == 0:
-        return "—"
+        return "--"
     delta = (obs - pap) / pap * 100
     flag = "OK" if abs(delta) <= TOL_PCT else "!!"
     return f"{delta:+6.1f}% {flag}"

@@ -23,11 +23,13 @@
 # Env knobs:
 #   PY                 Python interpreter (default: python3 from PATH)
 #   CARGO_HOME         Where rustup installs (default: $HOME/.cargo)
-#   SKIP_RUST=1        Don't try to install Rust — assume cargo is on PATH
+#   SKIP_RUST=1        Don't try to install Rust -- assume cargo is on PATH
 #   SKIP_BUILD=1       Skip the maturin build (already-built peek)
 #   SKIP_SGLANG=1      Don't install sglang (already installed)
 #   SKIP_BENCH=1       Don't install bench deps
 #   SKIP_LIBNUMA=1     Don't apt-install libnuma-dev (already present)
+#   SKIP_BENCH_SERVING_PATCH=1   Don't apply patches/sglang/bench_serving.patch
+#                                (W4 will silently no-op its agentic env vars)
 #   SGLANG_VERSION     Override pinned sglang version (default 0.5.9)
 #
 # Engine-coexistence note: sglang and vllm pin incompatible torch versions
@@ -44,6 +46,7 @@ SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_SGLANG="${SKIP_SGLANG:-0}"
 SKIP_BENCH="${SKIP_BENCH:-0}"
 SKIP_LIBNUMA="${SKIP_LIBNUMA:-0}"
+SKIP_BENCH_SERVING_PATCH="${SKIP_BENCH_SERVING_PATCH:-0}"
 SGLANG_VERSION="${SGLANG_VERSION:-0.5.9}"
 
 echo "[peek+sglang] repo=$REPO_ROOT"
@@ -104,7 +107,7 @@ fi
 # ---------- 4. sglang engine ---------------------------------------------
 if [[ "$SKIP_SGLANG" != "1" ]]; then
   if ! "$PY" -c "import sglang" 2>/dev/null; then
-    echo "[peek+sglang] installing sglang[all]==$SGLANG_VERSION (large download — be patient)"
+    echo "[peek+sglang] installing sglang[all]==$SGLANG_VERSION (large download -- be patient)"
     # uv is faster than pip for sglang's heavy dep tree; fall back to pip
     # if uv isn't available.
     if command -v uv >/dev/null 2>&1; then
@@ -133,6 +136,32 @@ if [[ "$SKIP_BENCH" != "1" ]]; then
   echo "[peek+sglang] installing bench deps (aiohttp, transformers, datasets)"
   "$PY" -m pip install --quiet aiohttp transformers datasets
   echo "[peek+sglang] bench deps installed"
+fi
+
+# ---------- 5b. apply bench_serving patch (required by W4) ---------------
+# Adds PEEK_AGENT_INTER_TURN_* and PEEK_SHARED_SYSTEM_PROMPT_PATH support to
+# sglang.bench_serving.get_mooncake_request_over_time. No-op when those env
+# vars are unset, so applying it is safe for non-W4 workloads too.
+if [[ "$SKIP_SGLANG" != "1" && "$SKIP_BENCH_SERVING_PATCH" != "1" ]]; then
+  PATCH_FILE="$REPO_ROOT/patches/sglang/bench_serving.patch"
+  if [[ -f "$PATCH_FILE" ]]; then
+    SGLANG_BENCH_SERVING="$("$PY" -c 'import sglang.bench_serving as m; print(m.__file__)' 2>/dev/null || true)"
+    if [[ -n "$SGLANG_BENCH_SERVING" && -f "$SGLANG_BENCH_SERVING" ]]; then
+      MARKER_COUNT="$(grep -c 'PEEK PATCH' "$SGLANG_BENCH_SERVING" 2>/dev/null || echo 0)"
+      if [[ "$MARKER_COUNT" -ge 6 ]]; then
+        echo "[peek+sglang] bench_serving.patch already applied ($MARKER_COUNT markers)"
+      else
+        echo "[peek+sglang] applying $PATCH_FILE -> $SGLANG_BENCH_SERVING"
+        if patch -p0 --forward "$SGLANG_BENCH_SERVING" < "$PATCH_FILE"; then
+          echo "[peek+sglang] bench_serving.patch applied OK"
+        else
+          echo "[peek+sglang] WARNING: bench_serving.patch did not apply cleanly. " \
+               "W4 SGLang runs will not honour PEEK_AGENT_INTER_TURN_* / " \
+               "PEEK_SHARED_SYSTEM_PROMPT_PATH. See patches/sglang/README.md." >&2
+        fi
+      fi
+    fi
+  fi
 fi
 
 # ---------- 6. (optional) apply offline source-level patches -------------

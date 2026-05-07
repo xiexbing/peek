@@ -1,7 +1,7 @@
 #!/bin/bash
-# W5 benchmark driver — vLLM side, shared-prefix variant for cache-hit study.
+# W5 benchmark driver -- vLLM side, shared-prefix variant for cache-hit study.
 #
-# Cells (shared system-prompt → measurable cache hit rate)
+# Cells (shared system-prompt -> measurable cache hit rate)
 #   C_short  prefix=512 tok,  decode=128, groups=20, zipf(α=1.2)
 #   C_long   prefix=2048 tok, decode=128, groups=20, zipf(α=1.2)
 #
@@ -10,10 +10,10 @@
 #   clpm   pure peek FLPM (PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1) + LRU                 (no group_major)
 #   clpm_gm_dl_pe   peek_flpm + group_major + dynamic_lane + peek_evict (demand_cluster)
 #
-# Closed-loop: rate=0, concurrency=256 → measures saturation throughput.
+# Closed-loop: rate=0, concurrency=256 -> measures saturation throughput.
 #
 # Usage
-#   bash run_w5_vllm.sh                                          # full (18 runs: 3p × 2c × 3s)
+#   bash run_w5_vllm.sh                                          # full (18 runs: 3p x 2c x 3s)
 #   POLICIES=fcfs_lru CELLS=C_short SEEDS=42 bash run_w5_vllm.sh       # smoke
 
 set -uo pipefail
@@ -78,7 +78,7 @@ policy_env() {
 kill_server() {
   # Parent api_server (matches on cmdline).
   pkill -9 -f "vllm.entrypoints.openai.api_server.*--port $PORT" 2>/dev/null || true
-  # vLLM v1 spawns an EngineCore child that survives the parent — its
+  # vLLM v1 spawns an EngineCore child that survives the parent -- its
   # process name is set via setproctitle to "VLLM::EngineCore", so `pkill
   # -f` matches it on the proc title. Without this, the orphan keeps the
   # GPU and the next launch fails with "Engine core initialization failed".
@@ -92,7 +92,7 @@ launch_server() {
   local env_pref; env_pref="$(policy_env "$policy")"
 
   echo "[w5-vllm] launching $policy (env='$env_pref') -> $slog"
-  # PYTHONPATH always includes peek_sitecustomize — the shim is a no-op when
+  # PYTHONPATH always includes peek_sitecustomize -- the shim is a no-op when
   # no PEEK_* env is set, so it's safe for fcfs_lru.
   env \
     HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME" \
@@ -198,7 +198,7 @@ run_one() {
 }
 
 # ------------------------------ main loop ---------------------------------
-# Policy-major: one server per policy, all (seed × cell × rate) benches
+# Policy-major: one server per policy, all (seed x cell x rate) benches
 # back-to-back with /reset_prefix_cache between.
 
 declare -A policy_plan
@@ -255,7 +255,7 @@ for policy in "${policy_order[@]}"; do
     if [[ "$server_up" == 0 || "$FULL_RESTART" == "1" ]]; then
       slog="$slog_base"
       if ! launch_server "$policy" "$slog"; then
-        echo "[w5-vllm]   LAUNCH FAILED for $policy — skipping remaining benches"
+        echo "[w5-vllm]   LAUNCH FAILED for $policy -- skipping remaining benches"
         server_up=0
         break
       fi
@@ -263,7 +263,7 @@ for policy in "${policy_order[@]}"; do
     fi
 
     if ! run_one "$cell" "$policy" "$seed" "$out"; then
-      echo "[w5-vllm]   BENCH FAILED — restarting server"
+      echo "[w5-vllm]   BENCH FAILED -- restarting server"
       kill_server
       server_up=0
     fi

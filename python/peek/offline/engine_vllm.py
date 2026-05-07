@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""VllmPeekEngine — coordinated scheduling + eviction for vLLM.
+"""VllmPeekEngine -- coordinated scheduling + eviction for vLLM.
 
 Mirrors :class:`PeekEngine` (``engine.py``) for SGLang but uses vLLM's
 block-hash based prefix caching instead of a radix tree.
@@ -25,7 +25,7 @@ Owns the full loop:
   5. Protect top-K groups from eviction via queue ref counting
 
 Works identically for online (Poisson arrivals) and offline (full batch)
-modes — it operates on whatever is in the waiting queue at each cycle.
+modes -- it operates on whatever is in the waiting queue at each cycle.
 """
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ class VllmPeekEngine:
         self,
         groups: dict[tuple, list[Any]],
     ) -> list[tuple[float, tuple, list[Any], int]]:
-        """Score each group by tokens_saved (cache_frac × total_blocks × group_size).
+        """Score each group by tokens_saved (cache_frac x total_blocks x group_size).
 
         Returns list of (score, key, members, cached_blocks).
         """
@@ -166,7 +166,7 @@ class VllmPeekEngine:
         """Reorder: ready groups first (by score), buffering groups last.
 
         Buffering thresholds adapt to queue depth:
-          - Shallow (< 8):  no buffering — schedule immediately
+          - Shallow (< 8):  no buffering -- schedule immediately
           - Medium  (8-32): light buffering (min_group=2, wait=10ms)
           - Deep    (> 32): aggressive buffering (min_group=4, wait=30ms)
         """
@@ -262,7 +262,7 @@ class VllmPeekEngine:
         else:
             capacity_groups = num_groups
 
-        # Protect at most 2/3 of cache capacity — leave 1/3 for rotation
+        # Protect at most 2/3 of cache capacity -- leave 1/3 for rotation
         protect_k = min(num_groups, max(1, capacity_groups * 2 // 3))
 
         # Recency gate: only protect groups seen recently

@@ -18,7 +18,7 @@ Full flow under test (mirrors SchedulePolicy._compute_prefix_matches +
 _sort_by_longest_prefix in sglang/srt/managers/schedule_policy.py):
 
   for each req in waiting_queue:
-      1. main-cache match → r.prefix_indices   (simulated here: a random length)
+      1. main-cache match -> r.prefix_indices   (simulated here: a random length)
       2. if len(r.prefix_indices) <= CHECK_THRESHOLD:
              in-batch match against waiting-queue tree
              if match >= DEPRIORITIZE_THRESHOLD: deprioritize
@@ -75,7 +75,7 @@ class MockReq:
 def make_workload(n: int, *, seed: int) -> List[MockReq]:
     """Requests with one of a handful of shared system prompts + a random tail.
     Main-cache `prefix_indices` length is randomized: most reqs land below the
-    in-batch check threshold, some above — so the gating branch is exercised.
+    in-batch check threshold, some above -- so the gating branch is exercised.
     """
     rng = random.Random(seed)
     vocab = 256
@@ -151,7 +151,7 @@ def run_policy(queue: List[MockReq], deprioritized: set) -> List[int]:
     return [r.rid for r in q]
 
 # ---------------------------------------------------------------------------
-# The test: same workload → same deprioritized set → same final queue order.
+# The test: same workload -> same deprioritized set -> same final queue order.
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("n,seed", [(50, 0), (200, 1), (500, 2), (1000, 3), (2000, 4)])
@@ -236,14 +236,14 @@ def _run_peek_lpm_pipeline(queue: List[MockReq]) -> List[int]:
         check_threshold=CHECK_THRESHOLD,
         deprioritize_threshold=DEPRIORITIZE_THRESHOLD,
         rank_by_cluster_size=False,
-        main_hits=None,  # fallback to len(r.prefix_indices) — matches sglang's main_hit
+        main_hits=None,  # fallback to len(r.prefix_indices) -- matches sglang's main_hit
         peek_lpm_sort=True,
     )
     return [r.rid for r in q]
 
 def _run_peek_clpm_pipeline(queue: List[MockReq], window_ms: int = 0) -> List[int]:
-    """peek_clpm with window_ms=0 + no sharing-specific content ⇒ should reduce
-    to stock LPM order (warm by main_hit desc → pioneer arrival → sibling
+    """peek_clpm with window_ms=0 + no sharing-specific content => should reduce
+    to stock LPM order (warm by main_hit desc -> pioneer arrival -> sibling
     arrival). With window_ms>0, it diverges and needs its own reference.
     """
     from peek.online.lpm_integration import peek_clpm_sort_inplace
@@ -272,7 +272,7 @@ def test_peek_clpm_with_zero_window_matches_sglang_lpm(n: int, seed: int) -> Non
     (arrival_bucket) collapses to zero for every req. Within section,
     main_hit is still the primary ordering key, so warm reqs still sort
     by main_hit desc. peek_clpm adds req_score and cluster_size as
-    secondary/tertiary keys — these break ties that stock LPM preserves
+    secondary/tertiary keys -- these break ties that stock LPM preserves
     as arrival order.
 
     This test verifies the HEAD of the sorted queue (the warm-by-main_hit
@@ -285,7 +285,7 @@ def test_peek_clpm_with_zero_window_matches_sglang_lpm(n: int, seed: int) -> Non
     p_order = _run_peek_clpm_pipeline(queue, window_ms=0)
     # Warm section (main_hit > CHECK_THRESHOLD): same arrival order within
     # same-main_hit buckets. peek_clpm may reorder by cluster_score within
-    # equal-main_hit — verify warm reqs with DIFFERENT main_hit are in the
+    # equal-main_hit -- verify warm reqs with DIFFERENT main_hit are in the
     # same relative order.
     rid_to_req = {r.rid: r for r in queue}
     def _mh(rid):
@@ -294,7 +294,7 @@ def test_peek_clpm_with_zero_window_matches_sglang_lpm(n: int, seed: int) -> Non
     p_warm_rids = [rid for rid in p_order if _mh(rid) > CHECK_THRESHOLD]
     assert len(s_warm_rids) == len(p_warm_rids)
     # Same main_hit values at each position (may differ in tiebreak but
-    # main_hit sequence must be identical — LPM-equivalence of the primary
+    # main_hit sequence must be identical -- LPM-equivalence of the primary
     # signal).
     s_mhs = [_mh(rid) for rid in s_warm_rids]
     p_mhs = [_mh(rid) for rid in p_warm_rids]
@@ -304,7 +304,7 @@ def test_peek_clpm_with_zero_window_matches_sglang_lpm(n: int, seed: int) -> Non
 
 @pytest.mark.parametrize("n,seed", [(50, 0), (200, 1), (500, 2), (1000, 3), (2000, 4)])
 def test_peek_lpm_matches_sglang_lpm_random(n: int, seed: int) -> None:
-    """Full peek_lpm pipeline — including the Rust `lpm_sort_order` sort —
+    """Full peek_lpm pipeline -- including the Rust `lpm_sort_order` sort --
     must produce the same admission order as sglang's native LPM on every
     waiting-queue shape."""
     queue = make_workload(n, seed=seed)
@@ -320,7 +320,7 @@ def test_peek_lpm_matches_sglang_lpm_random(n: int, seed: int) -> None:
     )
 
 def test_peek_lpm_matches_sglang_lpm_heavy_sharing() -> None:
-    """Many reqs with identical main-cache lengths + heavy shared prefixes —
+    """Many reqs with identical main-cache lengths + heavy shared prefixes --
     stresses tie-preserving stable-sort behavior of lpm_sort_order."""
     base = list(range(40))
     queue: List[MockReq] = []
@@ -338,7 +338,7 @@ def test_peek_lpm_matches_sglang_lpm_heavy_sharing() -> None:
     assert s_order == p_order
 
 def test_peek_lpm_matches_sglang_lpm_all_warm() -> None:
-    """Every req has a long main-cache match → nothing deprioritized; both
+    """Every req has a long main-cache match -> nothing deprioritized; both
     sort purely by descending main_hit with stable arrival-order tiebreak."""
     queue = [
         MockReq(
@@ -354,7 +354,7 @@ def test_peek_lpm_matches_sglang_lpm_all_warm() -> None:
 
 def test_peek_lpm_matches_sglang_lpm_loogle_shape() -> None:
     """Shared-system-prompts shape matching Scenario 1 of the Qwen sweep
-    (100 groups × ~10 members × ~2048-token shared prefix). Verifies parity
+    (100 groups x ~10 members x ~2048-token shared prefix). Verifies parity
     on the exact workload the user cares about."""
     rng = random.Random(42)
     G = 100
@@ -372,7 +372,7 @@ def test_peek_lpm_matches_sglang_lpm_loogle_shape() -> None:
             tail = [rng.randint(0, 32_000) for _ in range(TAIL_LEN)]
             tokens = system_prompts[g] + tail
             # Mix of cold / warm reqs: 70% cold (main_hit=0..CHECK_THRESHOLD),
-            # 30% warm (main_hit > CHECK_THRESHOLD) — mirrors production shape.
+            # 30% warm (main_hit > CHECK_THRESHOLD) -- mirrors production shape.
             if rng.random() < 0.3:
                 main_len = rng.randint(CHECK_THRESHOLD + 1, SHARED_LEN)
             else:

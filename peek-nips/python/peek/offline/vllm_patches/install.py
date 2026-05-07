@@ -16,9 +16,9 @@
 """Install Peek queue-aware eviction patches into an existing vLLM v1 installation.
 
 Patches 3 files:
-  1. kv_cache_utils.py  — adds queue_ref_count to KVCacheBlock, queue-aware popleft
-  2. block_pool.py      — adds reset/inc queue ref methods, queue-aware get_new_blocks
-  3. scheduler.py       — adds _update_queue_refs() hook in schedule()
+  1. kv_cache_utils.py  -- adds queue_ref_count to KVCacheBlock, queue-aware popleft
+  2. block_pool.py      -- adds reset/inc queue ref methods, queue-aware get_new_blocks
+  3. scheduler.py       -- adds _update_queue_refs() hook in schedule()
 
 Usage:
     python vllm_patches/install.py                  # auto-detect vllm location
@@ -61,7 +61,7 @@ def backup(path: Path) -> None:
 
 
 # -----------------------------------------------------------------------
-# Patch 1: kv_cache_utils.py — add queue_ref_count to KVCacheBlock
+# Patch 1: kv_cache_utils.py -- add queue_ref_count to KVCacheBlock
 # -----------------------------------------------------------------------
 
 def patch_kv_cache_utils(vllm_dir: Path) -> bool:
@@ -87,7 +87,7 @@ def patch_kv_cache_utils(vllm_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: kv_cache_utils.py — added queue_ref_count to KVCacheBlock")
+        print(f"  PATCHED: kv_cache_utils.py -- added queue_ref_count to KVCacheBlock")
 
     # 1b. Add queue-aware popleft to FreeKVCacheBlockQueue
     if "popleft_queue_aware" not in text:
@@ -158,7 +158,7 @@ def patch_kv_cache_utils(vllm_dir: Path) -> bool:
             # Just append to the class by finding the remove method and adding after
             text = text.rstrip() + "\n" + queue_aware_method
         changed = True
-        print(f"  PATCHED: kv_cache_utils.py — added popleft_queue_aware method")
+        print(f"  PATCHED: kv_cache_utils.py -- added popleft_queue_aware method")
 
     if not changed:
         print(f"  OK: kv_cache_utils.py already fully patched")
@@ -170,7 +170,7 @@ def patch_kv_cache_utils(vllm_dir: Path) -> bool:
 
 
 # -----------------------------------------------------------------------
-# Patch 2: block_pool.py — queue ref methods + queue-aware get_new_blocks
+# Patch 2: block_pool.py -- queue ref methods + queue-aware get_new_blocks
 # -----------------------------------------------------------------------
 
 QUEUE_REF_METHODS = '''
@@ -212,7 +212,7 @@ def patch_block_pool(vllm_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: block_pool.py — added reset/inc_queue_ref_counts methods")
+        print(f"  PATCHED: block_pool.py -- added reset/inc_queue_ref_counts methods")
 
     # 2b. Add enable_queue_aware_eviction flag to __init__
     if "enable_queue_aware_eviction" not in text:
@@ -239,7 +239,7 @@ def patch_block_pool(vllm_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: block_pool.py — added enable_queue_aware_eviction flag")
+        print(f"  PATCHED: block_pool.py -- added enable_queue_aware_eviction flag")
 
     # 2c. Use queue-aware eviction in get_new_blocks when enabled
     if "popleft_queue_aware" not in text:
@@ -254,7 +254,7 @@ def patch_block_pool(vllm_dir: Path) -> bool:
             1,
         )
         changed = True
-        print(f"  PATCHED: block_pool.py — get_new_blocks uses queue-aware eviction")
+        print(f"  PATCHED: block_pool.py -- get_new_blocks uses queue-aware eviction")
 
     if not changed:
         print(f"  OK: block_pool.py already fully patched")
@@ -266,7 +266,7 @@ def patch_block_pool(vllm_dir: Path) -> bool:
 
 
 # -----------------------------------------------------------------------
-# Patch 3: scheduler.py — prefix-aware scheduling + queue-aware eviction
+# Patch 3: scheduler.py -- prefix-aware scheduling + queue-aware eviction
 # -----------------------------------------------------------------------
 
 PEEK_SCHEDULER_CODE = '''\
@@ -323,15 +323,15 @@ def patch_scheduler(vllm_dir: Path) -> bool:
 
     if marker in text:
         path.write_text(text)
-        print(f"  PATCHED: scheduler.py — added Peek scheduling hook")
+        print(f"  PATCHED: scheduler.py -- added Peek scheduling hook")
         return True
     else:
-        print(f"  FAILED: scheduler.py — could not find insertion point")
+        print(f"  FAILED: scheduler.py -- could not find insertion point")
         return False
 
 
 # -----------------------------------------------------------------------
-# Patch 4: server CLI — add --enable-queue-aware-eviction flag
+# Patch 4: server CLI -- add --enable-queue-aware-eviction flag
 # -----------------------------------------------------------------------
 
 def patch_cache_config(vllm_dir: Path) -> bool:
@@ -359,10 +359,10 @@ def patch_cache_config(vllm_dir: Path) -> bool:
 
     if "enable_queue_aware_eviction" in text:
         path.write_text(text)
-        print(f"  PATCHED: cache.py — added enable_queue_aware_eviction field")
+        print(f"  PATCHED: cache.py -- added enable_queue_aware_eviction field")
         return True
     else:
-        print(f"  FAILED: cache.py — could not find insertion point")
+        print(f"  FAILED: cache.py -- could not find insertion point")
         return False
 
 

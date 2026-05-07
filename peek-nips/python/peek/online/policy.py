@@ -15,7 +15,7 @@
 """Main-cache match helper: one-pass dualwalk of the pending tree against an
 external cache.
 
-This used to host `ClusterAwarePolicy` — a scoring-based scheduler. Scoring
+This used to host `ClusterAwarePolicy` -- a scoring-based scheduler. Scoring
 has been retired in favor of LPM-on-peek (see `peek.lpm_integration`). The
 dualwalk remains because it's a useful primitive independent of scheduling:
 it lets any caller (validation tests, stress tests, future mechanisms) compute
@@ -43,7 +43,7 @@ def compute_main_hits(
     edge, `cache_match_fn` is called ONCE for the accumulated-path tokens.
 
     `min_pending_count` (default 2) skips dualwalking into subtrees where
-    fewer than this many pending reqs share the edge — typically the
+    fewer than this many pending reqs share the edge -- typically the
     singleton-tail subtrees unique to one req. Those rids inherit the
     shared-prefix main_hit. Pass `min_pending_count=1` to query every edge
     exactly (useful for tests / tail-cache scenarios).
