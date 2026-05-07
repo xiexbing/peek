@@ -44,7 +44,7 @@ SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 
 CELLS="${CELLS:-A B C D}"
 RATES="${RATES:-moderate heavy}"
-SEEDS="${SEEDS:-42}"
+SEEDS="${SEEDS:-42 142 242}"
 # Policy order: best/worst extremes first so the user sees the upper bound
 # (clpm_gm_dl_pe) and lower bound (fcfs_lru) early; intermediates fill in. fcfs_apc_lru (APC+LRU stock
 # baseline) anchors the delta.

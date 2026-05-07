@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import random
 import statistics
 import time
@@ -88,6 +89,89 @@ def _try_load_loogle(max_docs: int):
         print("[bench] LooGLE returned no usable documents; falling back to synthetic.")
         return None
     return docs
+
+
+def _try_load_repobench(max_docs: int, prefix_tokens: int):
+    """Load RepoBench (Python, cross-file-first) and return docs grouped by repo.
+
+    RepoBench buckets examples by token count under `level` ('2k','4k','8k',
+    '12k','16k','24k','32k','64k','128k'). We pick the bucket nearest to our
+    prefix_tokens target so per-doc context is naturally close to the right
+    size before tokenizer truncation.
+
+    Returns list[{context, title, questions}] on success, None on failure.
+    """
+    try:
+        from datasets import load_dataset  # type: ignore
+    except Exception as e:
+        print(f"[bench] HF datasets unavailable ({e}); falling back to synthetic.")
+        return None
+    try:
+        rows = load_dataset("tianyang/repobench_python_v1.1", split="cross_file_first")
+    except Exception as e:
+        print(f"[bench] RepoBench download failed ({e}); falling back to synthetic.")
+        return None
+    # Pick the level bucket nearest to our prefix_tokens target.
+    levels_avail = ["2k", "4k", "8k", "12k", "16k", "24k", "32k", "64k", "128k"]
+    levels_tok = {"2k": 2000, "4k": 4000, "8k": 8000, "12k": 12000, "16k": 16000,
+                  "24k": 24000, "32k": 32000, "64k": 64000, "128k": 128000}
+    target_level = min(levels_avail, key=lambda lvl: abs(levels_tok[lvl] - prefix_tokens))
+    candidates = [r for r in rows if r.get("level") == target_level]
+    if not candidates:
+        print(f"[bench] RepoBench level={target_level} empty; falling back to synthetic.")
+        return None
+    # Group by repo (one example per repo to maximize prefix diversity).
+    by_repo: dict = {}
+    order: list = []
+    for row in candidates:
+        repo = row.get("repo_name", "?")
+        if repo in by_repo:
+            continue
+        # Reconstruct a "document" prefix: imports + cross-file snippets + in-file context.
+        parts = []
+        imp = row.get("import_statement") or ""
+        if imp:
+            parts.append(imp)
+        ctx_list = row.get("context") or []
+        if ctx_list:
+            parts.append("# Cross-file context:")
+            for snip in ctx_list:
+                if isinstance(snip, dict):
+                    parts.append(f"\n# from {snip.get('path','?')}:\n{snip.get('snippet','')}")
+        cropped = row.get("cropped_code") or ""
+        if cropped:
+            parts.append(f"\n# Current file:\n{cropped}")
+        doc_text = "\n".join(parts)
+        if len(doc_text) < 500:  # skip degenerate examples
+            continue
+        by_repo[repo] = {
+            "context": doc_text,
+            "title": f"{repo}/{row.get('file_path','?')}",
+            "questions": list(_REPOBENCH_QUESTIONS),
+        }
+        order.append(repo)
+        if len(by_repo) >= max_docs:
+            break
+    docs = [by_repo[r] for r in order][:max_docs]
+    if not docs:
+        print(f"[bench] RepoBench produced no usable docs at level={target_level}; falling back.")
+        return None
+    print(f"[bench] loaded {len(docs)} RepoBench Python repos (level={target_level}).")
+    return docs
+
+
+_REPOBENCH_QUESTIONS = [
+    "Explain what this code does at a high level.",
+    "Identify potential bugs or edge cases in this code.",
+    "Suggest concrete improvements to this code.",
+    "Add docstrings and type annotations to this code.",
+    "Refactor the most complex function in this code.",
+    "What inputs does the main function expect, and what does it return?",
+    "Trace the data flow through this code, step by step.",
+    "Find performance bottlenecks and propose optimizations.",
+    "Write unit tests covering the main functionality.",
+    "Explain how this code interacts with the cross-file dependencies.",
+]
 
 
 def _get_tokenizer(model_name: str):
@@ -153,7 +237,10 @@ def _build_group_prompts(
     """
     docs = None
     tokenizer = None
-    if dataset in ("loogle", "auto"):
+    if dataset == "repobench":
+        docs = _try_load_repobench(max_docs=groups, prefix_tokens=prefix_tokens)
+        tokenizer = _get_tokenizer(model_name) if docs else None
+    elif dataset in ("loogle", "auto"):
         docs = _try_load_loogle(max_docs=groups)
         tokenizer = _get_tokenizer(model_name) if docs else None
 
@@ -191,6 +278,10 @@ def _build_group_prompts(
         raise RuntimeError(
             "dataset='loogle' was requested but LooGLE / tokenizer loading failed. "
             "Run with dataset='auto' to permit synthetic fallback."
+        )
+    if dataset == "repobench":
+        raise RuntimeError(
+            "dataset='repobench' was requested but RepoBench / tokenizer loading failed."
         )
     print("[bench] using synthetic shared-prefix workload (no LooGLE).")
     group_prompts = [_synthetic_group_system_prompt(g, prefix_tokens) for g in range(groups)]
@@ -347,12 +438,16 @@ async def dispatch_one(
             f"{req.user_message}\n\n"
             f"Please respond in approximately {target_words} words."
         )
+    messages = []
+    if req.system_prompt:
+        if os.environ.get("BENCH_NO_SYSTEM_ROLE"):
+            user_text = f"{req.system_prompt}\n\n{user_text}"
+        else:
+            messages.append({"role": "system", "content": req.system_prompt})
+    messages.append({"role": "user", "content": user_text})
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": req.system_prompt},
-            {"role": "user", "content": user_text},
-        ],
+        "messages": messages,
         "max_tokens": req.max_tokens,
         "stream": True,
         "stream_options": {"include_usage": True},
@@ -374,7 +469,7 @@ async def dispatch_one(
     err: Optional[str] = None
     try:
         async with client.post(
-            endpoint, json=payload, timeout=aiohttp.ClientTimeout(total=600)
+            endpoint, json=payload, timeout=aiohttp.ClientTimeout(total=int(os.environ.get("BENCH_HTTP_TIMEOUT_S", 1800)))
         ) as resp:
             if resp.status != 200:
                 err = f"HTTP {resp.status}: {(await resp.text())[:200]}"
@@ -468,8 +563,8 @@ async def run_sweep(args) -> dict:
         # Production pattern: target length is a property of the GROUP (the
         # type of workload — chat vs RAG vs CoT), not a per-request roll.
         # Reqs sharing a system prompt come from the same caller and have
-        # similar output-length distributions, so we assign one target per
-        # group rather than rolling per-request.
+        # similar output-length distributions. Assigning one target per group
+        # gives peek's per-cluster decode predictor real signal to learn from.
         rng = random.Random(args.seed ^ 0xD3C0DE)
         n_groups = max(args.groups, 1)
         group_lengths: List[int] = []
@@ -764,8 +859,9 @@ def _parse() -> argparse.Namespace:
     p.add_argument("--groups", type=int, default=100, help="G: number of prefix groups.")
     p.add_argument("--prefix-tokens", type=int, default=2048)
     p.add_argument(
-        "--dataset", choices=("loogle", "synthetic", "auto"), default="auto",
-        help="loogle = real long docs (paper-comparable); synthetic = deterministic filler; "
+        "--dataset", choices=("loogle", "synthetic", "auto", "repobench"), default="auto",
+        help="loogle = real long docs (paper-comparable); repobench = real Python repo "
+             "code-context (RepoBench cross-file-first); synthetic = deterministic filler; "
              "auto = try loogle then fall back to synthetic.",
     )
     p.add_argument(
@@ -789,7 +885,7 @@ def _parse() -> argparse.Namespace:
              "--decode-mix target. Target length is communicated to the model "
              "via a 'respond in ~N words' prompt instruction instead. This "
              "makes sglang's new_token_ratio estimator uncertain, exercising "
-             "the engine's admission path the way production traffic does.",
+             "KV-budget admission control the way production traffic does.",
     )
     p.add_argument(
         "--rate", type=float, default=0.0,

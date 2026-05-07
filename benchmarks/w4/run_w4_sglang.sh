@@ -35,7 +35,7 @@ PY="${PY:-python3}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-600}"
 
 POLICIES="${POLICIES:-lpm_lru clpm_gm_dl clpm_gm_dl_pe}"
-SEEDS="${SEEDS:-42}"
+SEEDS="${SEEDS:-42 142 242}"
 DATASETS="${DATASETS:-mooncake}"
 CELLS="${CELLS:-moderate heavy}"
 

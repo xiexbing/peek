@@ -10,7 +10,7 @@
 #
 # Cells
 #   A     G=40  prefix=4096   N=500 warmup=100  KV~3×  oversub  (short-RAG ref)
-#   B     G=40  prefix=8192   N=500 warmup=100  KV~7×  oversub  PRIMARY (mainstream RAG)
+#   B     G=40  prefix=8192   N=1000 warmup=100  KV~7×  oversub  PRIMARY (mainstream RAG)
 #   C     G=40  prefix=16384  N=500 warmup=100  KV~14× oversub  (long-doc RAG)
 #   D0    G=40  prefix=8192   fixed_decode=128  decode-length sensitivity
 #   D1    G=40  prefix=8192   fixed_decode=512

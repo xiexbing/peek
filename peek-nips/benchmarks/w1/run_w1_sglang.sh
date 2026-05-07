@@ -14,11 +14,13 @@
 #     C  G=100 prefix=4096 N=1000 warmup=200   KV footprint 410K    → ~8×  oversub   [PRIMARY]
 #     D  G=200 prefix=4096 N=2000 warmup=400   KV footprint 820K    → ~16× oversub (extreme)
 #
-#   Rates (req/s) per cell (planning estimates — recalibrate from r_sat probe)
-#     A  moderate=8  heavy=16
-#     B  moderate=6  heavy=12
-#     C  moderate=3  heavy=6
-#     D  moderate=2  heavy=4
+#   Rates (req/s) per cell — calibrated against the LPM+LRU baseline so that
+#   moderate sustains queue p50 ∈ [60,127] and heavy sustains queue ≥128
+#   (the SGLang LPM-fallback boundary; paper §4 Table 7).
+#     A  moderate=40 heavy=60
+#     B  moderate=35 heavy=80
+#     C  moderate=4  heavy=8
+#     D  moderate=12 heavy=24
 #
 #   Seeds   42, 142, 242
 #
@@ -67,7 +69,7 @@ PRIMARY_CELL="${PRIMARY_CELL:-C}"
 # Zipf / decode / concurrency fixed across W1
 ZIPF_ALPHA="${ZIPF_ALPHA:-1.0}"
 MAX_TOKENS="${MAX_TOKENS:-128}"
-CONCURRENCY="${CONCURRENCY:-64}"
+CONCURRENCY="${CONCURRENCY:-512}"
 TTFT_SLO="${TTFT_SLO:-2000}"
 TPOT_SLO="${TPOT_SLO:-100}"
 E2E_SLO="${E2E_SLO:-60000}"
@@ -87,16 +89,16 @@ CELL_G[C]=100;   CELL_PREFIX[C]=4096;  CELL_N[C]=1000; CELL_WARMUP[C]=200;  CELL
 CELL_G[D]=200;   CELL_PREFIX[D]=4096;  CELL_N[D]=2000; CELL_WARMUP[D]=400;  CELL_OVERSUB[D]=16
 
 cell_rate() {
-  # $1=cell A/B/C/D, $2=label moderate/heavy
+  # $1=cell A/B/C/D, $2=label moderate/heavy (paper-calibrated per Table 7).
   case "$1-$2" in
-    A-moderate) echo 8  ;;
-    A-heavy)    echo 16 ;;
-    B-moderate) echo 6  ;;
-    B-heavy)    echo 12 ;;
-    C-moderate) echo 3  ;;
-    C-heavy)    echo 6  ;;
-    D-moderate) echo 2  ;;
-    D-heavy)    echo 4  ;;
+    A-moderate) echo 40 ;;
+    A-heavy)    echo 60 ;;
+    B-moderate) echo 35 ;;
+    B-heavy)    echo 80 ;;
+    C-moderate) echo 4  ;;
+    C-heavy)    echo 8  ;;
+    D-moderate) echo 12 ;;
+    D-heavy)    echo 24 ;;
     *) echo "ERR"; return 1 ;;
   esac
 }

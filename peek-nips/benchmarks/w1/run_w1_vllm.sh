@@ -44,7 +44,7 @@ SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 
 CELLS="${CELLS:-A B C D}"
 RATES="${RATES:-moderate heavy}"
-SEEDS="${SEEDS:-42}"
+SEEDS="${SEEDS:-42 142 242}"
 # Policy order: best/worst extremes first so the user sees the upper bound
 # (clpm_gm_dl_pe) and lower bound (fcfs_lru) early; intermediates fill in. fcfs_apc_lru (APC+LRU stock
 # baseline) anchors the delta.
@@ -276,8 +276,8 @@ echo "[w1] results → $RESULTS_DIR"
 echo
 
 # Preflight: peek import + sitecustomize present.
-"$PY" -c "import peek.engines.vllm.patch_hook" 2>/dev/null \
-  || { echo "[w1] preflight FAIL: peek.engines.vllm.patch_hook not importable — run 'maturin develop --release' first"; exit 1; }
+"$PY" -c "import peek.online.engines.vllm.patch_hook" 2>/dev/null \
+  || { echo "[w1] preflight FAIL: peek.online.engines.vllm.patch_hook not importable — run 'maturin develop --release' first"; exit 1; }
 [[ -f "$SITECUSTOMIZE_DIR/sitecustomize.py" ]] \
   || { echo "[w1] preflight FAIL: sitecustomize shim missing: $SITECUSTOMIZE_DIR/sitecustomize.py"; exit 1; }
 

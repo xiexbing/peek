@@ -23,7 +23,7 @@ set -uo pipefail
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 VENV_ROOT="${VENV_ROOT:-/workspace/peek}"
 MODEL="${MODEL:-google/gemma-2-27b-it}"
-MEM_FRAC="${MEM_FRAC:-0.85}"
+GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.9}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-8192}"
 PORT="${PORT:-30000}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w5/results_vllm}"
@@ -102,7 +102,7 @@ launch_server() {
     "$PY" -m vllm.entrypoints.openai.api_server \
       --model "$MODEL" \
       --host 127.0.0.1 --port "$PORT" \
-      --gpu-memory-utilization "$MEM_FRAC" \
+      --gpu-memory-utilization "$GPU_MEM_UTIL" \
       --max-model-len "$MAX_MODEL_LEN" \
       --enable-prefix-caching \
       --enable-prompt-tokens-details \

@@ -10,7 +10,7 @@
 #
 # Cells
 #   A     G=40  prefix=4096   N=500 warmup=100  KV~3×  oversub  (short-RAG ref)
-#   B     G=40  prefix=8192   N=500 warmup=100  KV~7×  oversub  PRIMARY (mainstream RAG)
+#   B     G=40  prefix=8192   N=1000 warmup=100  KV~7×  oversub  PRIMARY (mainstream RAG)
 #   C     G=40  prefix=16384  N=500 warmup=100  KV~14× oversub  (long-doc RAG)
 #   D0    G=40  prefix=8192   fixed_decode=128  decode-length sensitivity
 #   D1    G=40  prefix=8192   fixed_decode=512
@@ -42,7 +42,7 @@ REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 MODEL="${MODEL:-Qwen/Qwen2.5-32B-Instruct}"
 MEM_FRAC="${MEM_FRAC:-0.88}"
 PORT="${PORT:-30000}"
-RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w3/results}"
+RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w2/results}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-1800}"
 HF_HOME="${HF_HOME:-/workspace/hf-cache}"
 PY="${PY:-python3}"

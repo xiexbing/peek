@@ -23,7 +23,7 @@ set -uo pipefail
 
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 MODEL="${MODEL:-google/gemma-2-27b-it}"
-MEM_FRAC="${MEM_FRAC:-0.85}"
+MEM_FRAC="${MEM_FRAC:-0.88}"
 PORT="${PORT:-30000}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w5/results}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-1800}"
