@@ -162,11 +162,26 @@ requires_radix = pytest.mark.skipif(
     reason=f"Cannot import RadixCache (likely no GPU): {_radix_import_error}",
 )
 
-def _make_cache(eviction_policy="queue-aware", page_size=1):
+class _NullAllocator:
+    """Stub allocator for unit tests that exercise eviction without a GPU.
+
+    sglang's RadixCache reads ``self.token_to_kv_pool_allocator.device``
+    in ``__init__`` and calls ``allocator.free(indices)`` from ``evict``.
+    These unit tests don't actually allocate KV memory, so a no-op free
+    + a CPU device handle is sufficient.
+    """
+
+    device = torch.device("cpu")
+
+    def free(self, indices):  # noqa: ARG002 — sglang interface
+        return None
+
+
+def _make_cache(eviction_policy="queue-aware", page_size=1, allocator=None):
     params = CacheInitParams(
         disable=False,
         req_to_token_pool=None,
-        token_to_kv_pool_allocator=None,
+        token_to_kv_pool_allocator=allocator if allocator is not None else _NullAllocator(),
         page_size=page_size,
         eviction_policy=eviction_policy,
     )
