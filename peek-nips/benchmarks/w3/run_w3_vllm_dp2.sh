@@ -104,8 +104,8 @@ wait_worker_ready() {
       echo "[w4-vllm-dp2]   worker $port ready after $(( $(date +%s) - t0 ))s"
       return 0
     fi
-    if (( $(date +%s) - t0 > 1800 )); then
-      echo "[w4-vllm-dp2]   worker $port FAILED to be ready in 1800s"
+    if (( $(date +%s) - t0 > 3600 )); then
+      echo "[w4-vllm-dp2]   worker $port FAILED to be ready in 3600s"
       return 1
     fi
     sleep 10

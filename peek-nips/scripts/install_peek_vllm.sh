@@ -98,6 +98,12 @@ if [[ "$SKIP_VLLM" != "1" ]]; then
     echo "[peek+vllm] ERROR: peek.online.engines.vllm.patch_hook import failed" >&2
     exit 1
   fi
+  # vllm's flash-attn / fused-kernel paths use ninja at first inference;
+  # missing it triggers FileNotFoundError mid-bench. Pre-install for safety.
+  if ! "$PY" -c "import ninja" 2>/dev/null; then
+    echo "[peek+vllm] installing ninja (required for JIT kernel build)"
+    "$PY" -m pip install --quiet ninja
+  fi
 fi
 
 # ---------- 5. bench/test deps -------------------------------------------

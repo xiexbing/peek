@@ -100,8 +100,8 @@ launch_server() {
         return 0
       fi
     fi
-    if (( $(date +%s) - t0 > 1200 )); then
-      echo "[w3-dp2]   server failed to start in 1200s"
+    if (( $(date +%s) - t0 > 3600 )); then
+      echo "[w3-dp2]   server failed to start in 3600s"
       return 1
     fi
     sleep 10

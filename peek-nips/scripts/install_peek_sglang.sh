@@ -120,6 +120,12 @@ if [[ "$SKIP_SGLANG" != "1" ]]; then
     echo "[peek+sglang] ERROR: peek.online.engines.sglang.patch_hook import failed" >&2
     exit 1
   fi
+  # sglang 0.5.9's fa3 attention backend uses tvm_ffi JIT which shells out
+  # to `ninja` at first inference. Without it the server SIGQUITs.
+  if ! "$PY" -c "import ninja" 2>/dev/null; then
+    echo "[peek+sglang] installing ninja (required for sglang JIT kernels)"
+    "$PY" -m pip install --quiet ninja
+  fi
 fi
 
 # ---------- 5. bench/test deps -------------------------------------------
