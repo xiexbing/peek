@@ -111,36 +111,49 @@ ensure your `HF_TOKEN` is exported before the first W5 run.
 W4 needs two files at `benchmarks/w4/data/`. Neither is bundled in the
 archive -- both are easy to recreate.
 
-**1. `conversation_trace_le6k.jsonl`** (Mooncake, ~630 KB) -- fetch and
-filter from the FAST'25 Mooncake release:
+**1. `conversation_trace_le6k.jsonl`** (Mooncake, ~1.4 MB filtered) --
+fetch and filter from the FAST'25 Mooncake release. The trace is one
+session per JSONL line, with keys
+`{timestamp, input_length, output_length, hash_ids}`; the `_le6k` subset
+keeps sessions whose `input_length + output_length <= 6000` (~44 % of
+the upstream trace, 5,285 of 12,031 sessions at the time of writing).
 
 ```bash
 cd benchmarks/w4/data
 
-# Fetch the upstream trace (path may vary across Mooncake releases;
-# check the upstream README at github.com/kvcache-ai/Mooncake)
-curl -L -O https://raw.githubusercontent.com/kvcache-ai/Mooncake/main/mooncake_trace/conversation_trace.jsonl
+# Fetch the upstream trace from the FAST'25 release (path is stable
+# at the time of writing; if the upstream layout shifts, navigate
+# kvcache-ai/Mooncake's FAST25-release/traces/ directory)
+curl -L -O https://raw.githubusercontent.com/kvcache-ai/Mooncake/main/FAST25-release/traces/conversation_trace.jsonl
 
-# Filter to sessions whose cumulative input+output token count is <=6k
+# Filter to <=6k cumulative tokens per session
 python3 - <<'PY'
 import json
-src = "conversation_trace.jsonl"; dst = "conversation_trace_le6k.jsonl"
+src = "conversation_trace.jsonl"
+dst = "conversation_trace_le6k.jsonl"
 kept = total = 0
 with open(src) as f_in, open(dst, "w") as f_out:
     for line in f_in:
         line = line.strip()
-        if not line: continue
-        rec = json.loads(line); total += 1
-        cum = sum(int(t.get("input_length", 0)) + int(t.get("output_length", 0))
-                  for t in rec.get("turns", []))
+        if not line:
+            continue
+        rec = json.loads(line)
+        total += 1
+        cum = int(rec.get("input_length", 0)) + int(rec.get("output_length", 0))
         if cum <= 6000:
-            f_out.write(line + "\n"); kept += 1
-print(f"kept {kept}/{total} sessions (cumulative tokens <=6000)")
+            f_out.write(line + "\n")
+            kept += 1
+print(f"kept {kept}/{total} sessions (input+output <=6000)")
 PY
 ```
 
-The drivers hardcode the path; override with `MOONCAKE_PATH=...` if you
-keep the file elsewhere.
+The drivers hardcode the output path
+(`benchmarks/w4/data/conversation_trace_le6k.jsonl`); override with
+`MOONCAKE_PATH=...` if you keep the file elsewhere. To run the full
+unfiltered trace (~2.7 x more sessions), point `MOONCAKE_PATH` at
+`conversation_trace.jsonl` directly -- the bench client takes only
+the first `MC_NUM_PROMPTS[<cell>]` sessions sorted by timestamp, so a
+larger pool just means more diversity in the working set.
 
 **2. `shared_system_prompt.txt`** (only for the `agentic_shared`
 scenario) -- a multi-thousand-token system prompt that models a
