@@ -97,20 +97,22 @@ hf download google/gemma-2-27b-it
 
 ## 3. Datasets
 
-| Dataset                          | Source                                                                | Used by | Auto-fetched? |
-| -------------------------------- | --------------------------------------------------------------------- | ------- | ------------- |
-| LooGLE                           | `bigainlco/LooGLE` on HuggingFace                                     | W1, W2, W3 | yes (via `datasets`) |
-| Mooncake `conversation_trace`    | `kvcache-ai/Mooncake` (FAST'25 release) -- bundled in `w4/data/`      | W4         | bundled       |
-| LMSYS arena chat                 | `lmsys/lmsys-chat-1m` on HuggingFace (CC BY-NC; requires HF_TOKEN)    | W5         | yes (via `datasets`) |
-
-The W4 trace and the optional shared-system prompt are bundled in-tree
-at `benchmarks/w4/data/conversation_trace_le6k.jsonl` and
-`benchmarks/w4/data/shared_system_prompt.txt` (see
-`benchmarks/w4/data/README.md` for provenance and re-fetch
-instructions).
+| Dataset                          | Source                                                                | Used by | Status                          |
+| -------------------------------- | --------------------------------------------------------------------- | ------- | ------------------------------- |
+| LooGLE                           | `bigainlco/LooGLE` on HuggingFace                                     | W1, W2, W3 | auto-fetched via `datasets`  |
+| Mooncake `conversation_trace`    | `kvcache-ai/Mooncake` (FAST'25 release)                               | W4         | **fetch+filter** (see below)  |
+| LMSYS arena chat                 | `lmsys/lmsys-chat-1m` on HuggingFace (CC BY-NC; requires HF_TOKEN)    | W5         | auto-fetched via `datasets`   |
 
 LMSYS-Chat-1M is gated on HuggingFace; accept the dataset's terms and
 ensure your `HF_TOKEN` is exported before the first W5 run.
+
+The Mooncake trace is **not** bundled in this archive (it is third-party
+data; the supplemental ships only PEEK code and the Apache 2.0
+`shared_system_prompt.txt`). Before running W4, fetch and filter the
+upstream trace into `benchmarks/w4/data/conversation_trace_le6k.jsonl`.
+The full recipe (curl + 8-line Python filter) is in
+`benchmarks/w4/data/README.md`. Filtering takes a few seconds; the
+filtered file is ~630 KB.
 
 ## 4. Smoke test (under 5 minutes, no full benchmark)
 
