@@ -108,6 +108,7 @@ launch_server() {
       --model "$MODEL" \
       --gpu-memory-utilization "$GPU_MEM_UTIL" \
       --enable-prefix-caching \
+      --enable-prompt-tokens-details \
       --max-model-len "$MAX_MODEL_LEN" \
       --host 127.0.0.1 --port "$PORT" \
       >>"$slog" 2>&1 &

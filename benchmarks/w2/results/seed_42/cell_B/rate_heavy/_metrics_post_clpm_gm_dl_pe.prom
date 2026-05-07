@@ -1,0 +1,8 @@
+sglang:prompt_tokens_total{model_name="Qwen/Qwen2.5-32B-Instruct"} 5.451689e+06
+sglang:generation_tokens_total{model_name="Qwen/Qwen2.5-32B-Instruct"} 855651.0
+sglang:cached_tokens_total{cache_source="total",model_name="Qwen/Qwen2.5-32B-Instruct"} 4.319631e+06
+sglang:realtime_tokens_total{engine_type="unified",mode="prefill_compute",model_name="Qwen/Qwen2.5-32B-Instruct",moe_ep_rank="0",pp_rank="0",tp_rank="0"} 1.143549e+06
+sglang:realtime_tokens_total{engine_type="unified",mode="decode",model_name="Qwen/Qwen2.5-32B-Instruct",moe_ep_rank="0",pp_rank="0",tp_rank="0"} 855646.0
+sglang:realtime_tokens_total{engine_type="unified",mode="prefill_cache",model_name="Qwen/Qwen2.5-32B-Instruct",moe_ep_rank="0",pp_rank="0",tp_rank="0"} 4.508144e+06
+sglang:num_retractions_sum{model_name="Qwen/Qwen2.5-32B-Instruct"} 30.0
+sglang:num_retractions_count{model_name="Qwen/Qwen2.5-32B-Instruct"} 998.0
