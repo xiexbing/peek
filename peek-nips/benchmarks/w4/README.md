@@ -51,11 +51,16 @@ Subsets: `POLICIES=lpm_lru SEEDS=42 CELLS=moderate bash run_w4_sglang.sh`.
 
 ## Data
 
-`run_w4_sglang.sh` expects the Mooncake conversation trace at
-`benchmarks/w4/data/conversation_trace_le6k.jsonl` and the optional
-shared system prompt at `benchmarks/w4/data/shared_system_prompt.txt`.
-See `benchmarks/w4/data/README.md` (or the Mooncake repo) for fetch
-instructions.
+`run_w4_sglang.sh` and `run_w4_vllm.sh` expect:
+
+- `benchmarks/w4/data/conversation_trace_le6k.jsonl` -- the filtered
+  Mooncake `conversation_trace`. Not bundled; fetch and filter from the
+  FAST'25 Mooncake release (`github.com/kvcache-ai/Mooncake`). The
+  fetch+filter recipe is in `benchmarks/REPRODUCE.md` "W4 data" section.
+- `benchmarks/w4/data/shared_system_prompt.txt` -- only for the
+  `agentic_shared` scenario. Not bundled; supply any ~1400-token
+  agent-style instruction block here. If absent, both drivers silently
+  fall back to `agentic_only` behaviour.
 
 ## Seeds
 

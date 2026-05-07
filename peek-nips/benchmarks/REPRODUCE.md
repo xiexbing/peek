@@ -106,13 +106,50 @@ hf download google/gemma-2-27b-it
 LMSYS-Chat-1M is gated on HuggingFace; accept the dataset's terms and
 ensure your `HF_TOKEN` is exported before the first W5 run.
 
-The Mooncake trace is **not** bundled in this archive (it is third-party
-data; the supplemental ships only PEEK code and the Apache 2.0
-`shared_system_prompt.txt`). Before running W4, fetch and filter the
-upstream trace into `benchmarks/w4/data/conversation_trace_le6k.jsonl`.
-The full recipe (curl + 8-line Python filter) is in
-`benchmarks/w4/data/README.md`. Filtering takes a few seconds; the
-filtered file is ~630 KB.
+### W4 data: fetch the Mooncake trace + supply a system prompt
+
+W4 needs two files at `benchmarks/w4/data/`. Neither is bundled in the
+archive -- both are easy to recreate.
+
+**1. `conversation_trace_le6k.jsonl`** (Mooncake, ~630 KB) -- fetch and
+filter from the FAST'25 Mooncake release:
+
+```bash
+cd benchmarks/w4/data
+
+# Fetch the upstream trace (path may vary across Mooncake releases;
+# check the upstream README at github.com/kvcache-ai/Mooncake)
+curl -L -O https://raw.githubusercontent.com/kvcache-ai/Mooncake/main/mooncake_trace/conversation_trace.jsonl
+
+# Filter to sessions whose cumulative input+output token count is <=6k
+python3 - <<'PY'
+import json
+src = "conversation_trace.jsonl"; dst = "conversation_trace_le6k.jsonl"
+kept = total = 0
+with open(src) as f_in, open(dst, "w") as f_out:
+    for line in f_in:
+        line = line.strip()
+        if not line: continue
+        rec = json.loads(line); total += 1
+        cum = sum(int(t.get("input_length", 0)) + int(t.get("output_length", 0))
+                  for t in rec.get("turns", []))
+        if cum <= 6000:
+            f_out.write(line + "\n"); kept += 1
+print(f"kept {kept}/{total} sessions (cumulative tokens <=6000)")
+PY
+```
+
+The drivers hardcode the path; override with `MOONCAKE_PATH=...` if you
+keep the file elsewhere.
+
+**2. `shared_system_prompt.txt`** (only for the `agentic_shared`
+scenario) -- a multi-thousand-token system prompt that models a
+tool-chain agent's instruction block. The paper used a 1402-token
+prompt; supply your own at `benchmarks/w4/data/shared_system_prompt.txt`
+(any plain-text agent-style instruction block in that ballpark). If
+the file is absent, both W4 drivers silently downgrade `agentic_shared`
+to `agentic_only` -- to verify Table 18's `agentic_shared` rows you
+must supply this file.
 
 ## 4. Smoke test (under 5 minutes, no full benchmark)
 
@@ -327,7 +364,7 @@ matrix once the smoke run lines up with the paper.
 | `compare_to_paper.py` reports MISSING            | Driver did not produce that (cell, rate, policy, seed) -- re-run with `CELLS=...`, `POLICIES=...`, `SEEDS=...` knobs |
 | W2 vLLM throughput is 0.000                      | The `--max-model-len` is too small for 8K prefix + decode -- bump it to `MAX_MODEL_LEN=12288` in the driver env      |
 | Llama-3.1-70B / Gemma-2 download 401             | Accept the license on HuggingFace, then re-run `huggingface-cli login` and retry the download                        |
-| Long benchmarks die overnight from terminal close | Run drivers under `nohup`, `tmux`, or `screen`; the `_run_chain_*.sh` scripts in `w3/` are designed for unattended execution |
+| Long benchmarks die overnight from terminal close | Run drivers under `nohup`, `tmux`, or `screen`                                                                       |
 
 ## 9. What's not directly reproducible from this kit
 
