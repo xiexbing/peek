@@ -19,14 +19,16 @@ cd "$REPO_ROOT"
 
 echo "[chain] === START === $(date)"
 
-# 1) SGLang
+# 1) SGLang — activate the sglang venv so its bin (incl. ninja) is on PATH
 echo "[chain] === SGLang stage ==="
-bash benchmarks/w3/_run_all_sglang_seed42.sh 2>&1 | tee /tmp/w3_sglang.log
+( source /workspace/envs/sglang/bin/activate
+  bash benchmarks/w3/_run_all_sglang_seed42.sh ) 2>&1 | tee /tmp/w3_sglang.log
 
 # 2) vLLM
 echo
 echo "[chain] === vLLM stage ==="
-bash benchmarks/w3/_run_all_vllm_seed42.sh 2>&1 | tee /tmp/w3_vllm.log
+( source /workspace/envs/vllm/bin/activate
+  bash benchmarks/w3/_run_all_vllm_seed42.sh ) 2>&1 | tee /tmp/w3_vllm.log
 
 # 3) Compare
 echo

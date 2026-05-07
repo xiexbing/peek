@@ -1,0 +1,106 @@
+{
+  "label": "clpm_gm_dl_pe_cellB_seed42_heavy",
+  "args": {
+    "endpoint": "http://127.0.0.1:30000/v1/chat/completions",
+    "model": "meta-llama/Llama-3.1-70B-Instruct",
+    "n": 500,
+    "groups": 14,
+    "prefix_tokens": 4096,
+    "dataset": "auto",
+    "distribution": "zipf",
+    "zipf_alpha": 1.0,
+    "max_tokens": 128,
+    "decode_mix": "10:128,25:512,30:1024,25:2048,10:4096",
+    "hide_max_tokens": false,
+    "rate": 0.0,
+    "concurrency": 180,
+    "seed": 42,
+    "warmup_reqs": 100,
+    "ttft_slo_ms": 2000.0,
+    "tpot_slo_ms": 100.0,
+    "e2e_slo_ms": 60000.0,
+    "output": "/workspace/peek/peek-nips/benchmarks/w3/results_vllm/seed_42/cell_B/rate_heavy/clpm_gm_dl_pe.json",
+    "label": "clpm_gm_dl_pe_cellB_seed42_heavy",
+    "save_per_request": false,
+    "phase_dump_path": "/tmp/peek_phases_{pid}.json"
+  },
+  "wall_clock_s": 5.00752510689199,
+  "counts": {
+    "submitted": 500,
+    "after_warmup": 400,
+    "ok": 0,
+    "errored": 400,
+    "bad_ttft": 0,
+    "slo_met": 0
+  },
+  "throughput": {
+    "request_per_s": 0.0,
+    "input_tok_per_s": 0.0,
+    "output_tok_per_s": 0.0,
+    "total_tok_per_s": 0.0,
+    "goodput_req_per_s": 0.0,
+    "slo_attainment_pct": 0.0
+  },
+  "ttft_ms": {
+    "mean": -1,
+    "p50": -1.0,
+    "p95": -1.0,
+    "p99": -1.0
+  },
+  "itl_ms": {
+    "mean": -1,
+    "p50": -1.0,
+    "p95": -1.0,
+    "p99": -1.0,
+    "max": -1,
+    "samples": 0
+  },
+  "tpot_ms": {
+    "mean": -1,
+    "p50": -1.0,
+    "p95": -1.0,
+    "p99": -1.0
+  },
+  "e2e_ms": {
+    "mean": -1,
+    "p50": -1.0,
+    "p95": -1.0,
+    "p99": -1.0
+  },
+  "cache": {
+    "hit_rate_pct": 0.0,
+    "prompt_tokens_total": 0,
+    "cached_tokens_total": 0,
+    "prefilled_tokens_total": 0
+  },
+  "concurrency": {
+    "max_in_flight": 180,
+    "cap": 180
+  },
+  "phases": {
+    "matched_rids": 0,
+    "total_ok": 0,
+    "server_queue_wait_ms": {
+      "samples": 0,
+      "mean": -1,
+      "p50": -1,
+      "p95": -1,
+      "p99": -1
+    },
+    "server_prefill_ms": {
+      "samples": 0,
+      "mean": -1,
+      "p50": -1,
+      "p95": -1,
+      "p99": -1
+    },
+    "decode_ms": {
+      "samples": 0,
+      "mean": -1,
+      "p50": -1,
+      "p95": -1,
+      "p99": -1
+    }
+  },
+  "per_request": []
+}

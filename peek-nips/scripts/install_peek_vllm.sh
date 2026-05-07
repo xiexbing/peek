@@ -104,6 +104,14 @@ if [[ "$SKIP_VLLM" != "1" ]]; then
     echo "[peek+vllm] installing ninja (required for JIT kernel build)"
     "$PY" -m pip install --quiet ninja
   fi
+  # The W3 vLLM DP=2 driver uses sglang_router as the front-end across
+  # two vLLM TP=2 workers (see benchmarks/w3/run_w3_vllm_dp2.sh). Without
+  # it, the router exits with ModuleNotFoundError and the bench gets
+  # connection failures.
+  if ! "$PY" -c "import sglang_router" 2>/dev/null; then
+    echo "[peek+vllm] installing sglang_router (required for W3 vLLM DP=2 driver)"
+    "$PY" -m pip install --quiet sglang-router
+  fi
 fi
 
 # ---------- 5. bench/test deps -------------------------------------------
