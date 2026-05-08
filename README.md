@@ -345,10 +345,13 @@ pytest tests/
 
 ## Citing PEEK
 
-> *PEEK-Online: Predictive Queue-Informed KV Cache Management for LLM Serving.*
-> *Anonymous submission, NeurIPS 2026.*
+> *PEEK: Predictive Queue-Informed KV Cache Management for LLM Serving.*
+> Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zheng Zhen. 2026.
 
-(Author and BibTeX entry will be added in the camera-ready version.)
+The paper is included in this repository at [`paper/peek.pdf`](paper/peek.pdf).
+A BibTeX entry will be added once the paper is posted to a public archive.
+See [`AUTHORS`](AUTHORS) for the author list and [`CITATION.cff`](CITATION.cff)
+for a machine-readable citation.
 
 ## License
 
