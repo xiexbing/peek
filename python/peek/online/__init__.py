@@ -20,6 +20,10 @@ matching engine patch hook (peek.online.engines.<engine>.patch_hook)
 with the appropriate PEEK_* environment flags set.
 """
 
+# Apply PEEK_PRESET (if set) before any submodule reads env vars.
+from peek.preset import apply as _apply_preset
+_apply_preset()
+
 from peek._core import PendingTree
 from peek.online.eviction import PeekDemandStrategy
 from peek.online.policy import compute_main_hits

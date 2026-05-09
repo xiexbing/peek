@@ -100,6 +100,21 @@ All tests should pass on a laptop with no LLM engine installed.
 environment flag is set. With no flags the shim is a no-op and the
 engine runs vanilla.
 
+### One-shot preset
+
+Setting `PEEK_PRESET=peek-online` enables the paper's primary configuration
+(scheduler + cLPM + group-major + dynamic lane + cluster-mode eviction)
+without having to set each `PEEK_ONLINE_*` flag individually:
+
+```bash
+PEEK_PRESET=peek-online python -m sglang.launch_server --schedule-policy lpm ...
+```
+
+Explicit per-flag env vars still win, so ablations work: e.g.,
+`PEEK_PRESET=peek-online PEEK_ONLINE_CLPM_DYNAMIC_LANE=0` keeps the rest of
+the preset and turns dynamic lane off. See `peek.preset` for the full
+mapping.
+
 ### SGLang
 
 ```bash
@@ -177,6 +192,11 @@ python -m sglang.launch_server --radix-eviction-policy queue-aware ...
 | `--radix-eviction-policy queue-aware` | (CLI) enable offline reorder + queue-aware eviction |
 | `PEEK_OFFLINE_ENABLE=1`               | enable client-side `PeekEngine` reorder             |
 | `PEEK_OFFLINE_SERVER_REORDER=1`       | enable server-side scheduling hook                  |
+| `PEEK_QUEUE_AWARE=1`                  | enable queue-aware eviction (auto-set by patch)     |
+
+`PEEK_PRESET=peek-offline` is the one-shot equivalent: sets the three
+`PEEK_OFFLINE_*` / `PEEK_QUEUE_AWARE` flags above to their default-on
+values. Explicit env vars still override the preset.
 
 ## Reproducing the paper
 

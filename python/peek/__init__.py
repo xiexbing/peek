@@ -27,6 +27,10 @@ convenience and is shared by both modes when a Rust toolchain is
 available; the offline path remains usable without it.
 """
 
+# Apply PEEK_PRESET (if set) before any submodule reads env vars.
+from peek.preset import apply as _apply_preset
+_apply_preset()
+
 # Rust extension lives at the top level. Both modes can use it; the
 # offline mode degrades to its pure-Python trie if the extension is not
 # built, so the import is best-effort.

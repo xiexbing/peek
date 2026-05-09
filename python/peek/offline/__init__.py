@@ -14,6 +14,10 @@
 
 """Peek -- Prefix-Sharing Batch Reordering for LLM Inference."""
 
+# Apply PEEK_PRESET (if set) before any submodule reads env vars.
+from peek.preset import apply as _apply_preset
+_apply_preset()
+
 # Auto-patch supported backends on import
 from peek.offline.install import install_all as _install_all
 _install_all()
