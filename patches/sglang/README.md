@@ -17,7 +17,7 @@ Pinned against **sglang 0.5.9**.
 ```bash
 cd <peek-repo-root>
 SGLANG_BENCH_SERVING="$(python3 -c 'import sglang.bench_serving as m; print(m.__file__)')"
-patch -p0 "$SGLANG_BENCH_SERVING" < benchmarks/w2/sglang_patches/bench_serving.patch
+patch -p0 "$SGLANG_BENCH_SERVING" < patches/sglang/bench_serving.patch
 ```
 
 To verify the patch landed:
@@ -29,7 +29,7 @@ grep -c "PEEK PATCH" "$SGLANG_BENCH_SERVING"   # expect: 6
 ## Revert
 
 ```bash
-patch -R -p0 "$SGLANG_BENCH_SERVING" < benchmarks/w2/sglang_patches/bench_serving.patch
+patch -R -p0 "$SGLANG_BENCH_SERVING" < patches/sglang/bench_serving.patch
 ```
 
 ## Why a patch and not a wrapper?
