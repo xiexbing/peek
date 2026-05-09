@@ -23,6 +23,7 @@ description = "Persistent radix tree for pending LLM requests"
 requires-python = ">=3.9"
 readme = "README.md"
 license = { text = "Apache-2.0" }
+authors = [{ name = "Bing Xie" }]
 
 [tool.maturin]
 module-name = "peek._core"

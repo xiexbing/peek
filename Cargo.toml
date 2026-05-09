@@ -18,6 +18,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Persistent radix tree for pending LLM requests"
 license = "Apache-2.0"
+authors = ["Bing Xie"]
 
 [lib]
 name = "_core"

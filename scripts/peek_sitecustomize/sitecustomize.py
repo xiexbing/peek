@@ -32,6 +32,18 @@ addition is safe for vanilla baseline runs too.
 
 import os as _os
 
+# Resolve PEEK_PRESET *before* the activation check below, so that a bare
+# `PEEK_PRESET=peek-online` (with no per-flag PEEK_ONLINE_* vars set) still
+# triggers patch_hook installation. peek.preset.apply() is idempotent and
+# uses os.environ.setdefault, so explicit user-set flags still win.
+try:
+    from peek.preset import apply as _apply_preset
+    _apply_preset()
+except Exception:
+    # peek not importable in this interpreter (e.g., pure-Python install
+    # without the Rust core) -- fall through to per-flag detection.
+    pass
+
 
 def _peek_active() -> bool:
     for _name in (

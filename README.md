@@ -141,6 +141,7 @@ PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_EVICTION=1 PEEK_ONLINE_CLPM=1 \
 
 | flag                                  | scope                                                    |
 | ------------------------------------- | -------------------------------------------------------- |
+| `PEEK_PRESET=peek-online`             | one-shot: enable the paper's primary configuration       |
 | `PEEK_ONLINE_SCHEDULER=1`             | install scheduler hooks (cLPM-eligible)                  |
 | `PEEK_ONLINE_EVICTION=1`              | install queue-aware eviction                             |
 | `PEEK_ONLINE_CLPM=1`                  | enable multi-lane (cache-locality + fairness) scheduler  |
