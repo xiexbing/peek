@@ -21,13 +21,14 @@ W3 are model size and parallelism.
 
 | Topology       | SGLang                                                  | vLLM                          |
 | -------------- | ------------------------------------------------------- | ----------------------------- |
-| **DP=1** (2 GPUs) | `MODEL=meta-llama/Llama-3.1-70B-Instruct TP=2 bash benchmarks/w1/run_w1_sglang.sh` (cell C) <br>or `... benchmarks/w2/run_w2_sglang.sh` (cell B) | `bash run_w3_vllm.sh` |
-| **DP=2** (4 GPUs) | `bash run_w3_sglang_dp2.sh`                             | `bash run_w3_vllm_dp2.sh`     |
+| **DP=1** (2 GPUs) | `bash run_w3_sglang.sh`                              | `bash run_w3_vllm.sh`         |
+| **DP=2** (4 GPUs) | `bash run_w3_sglang_dp2.sh`                          | `bash run_w3_vllm_dp2.sh`     |
 
-> The DP=1 SGLang case is reachable directly through the W1/W2 drivers
-> by overriding `MODEL` and `TP` -- both scripts honor those env vars.
-> No dedicated `run_w3_sglang.sh` is shipped because the workload is
-> structurally identical to W1/W2 with two parameters changed.
+> The DP=1 SGLang workload is structurally identical to W1/W2 with two
+> parameters changed (`MODEL=meta-llama/Llama-3.1-70B-Instruct`, `TP=2`),
+> so `run_w3_sglang.sh` is a thin wrapper. You can reach the same numbers
+> by invoking `benchmarks/w1/run_w1_sglang.sh` (cell C) or
+> `benchmarks/w2/run_w2_sglang.sh` (cell B) with those env vars set.
 
 ## Policies
 

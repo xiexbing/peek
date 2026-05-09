@@ -1,8 +1,8 @@
 # PEEK reproduction kit (W1-W5)
 
-Per-workload drivers for the experiments reported in PEEK-Online §4
-(NeurIPS 2026). Each `wN/` directory has its own README with cell
-parameters, expected runtimes, and worked examples.
+Per-workload drivers for the experiments reported in PEEK-Online §4.
+Each `wN/` directory has its own README with cell parameters, expected
+runtimes, and worked examples.
 
 | W   | §  | Workload                              | Model                                   | Hardware           |
 | --- | -- | ------------------------------------- | --------------------------------------- | ------------------ |
@@ -98,17 +98,13 @@ python benchmarks/w1/aggregate.py
 
 All paper numbers are **means across the 3 seeds (42, 142, 242)** after
 the first ~10-20% of requests are warmup-excluded. Per-seed JSON is in
-`<W>/results/seed_<N>/cell_<X>/rate_<Y>/<policy>.json`. The workload-
-specific `aggregate.py` consolidates seeds and emits CSV summaries +
-per-policy delta vs the engine's stock baseline.
+`<W>/results/seed_<N>/cell_<X>/rate_<Y>/<policy>.json`. W1 and W4 ship
+an `aggregate.py` that consolidates seeds and emits CSV summaries +
+per-policy delta vs the engine's stock baseline; W2/W3/W5 reuse the W1
+aggregator (the JSON layout is identical).
 
 ## What's not shipped
 
-- **W3 SGLang DP=1**: reachable via `MODEL=meta-llama/Llama-3.1-70B-Instruct
-  TP=2 bash benchmarks/w1/run_w1_sglang.sh` (chat, paper W3 cell C) or
-  similar with `run_w2_sglang.sh` (RAG, cell B). No standalone driver
-  because the workload is structurally identical to W1/W2 with two
-  parameters changed.
 - **W2 vLLM dedicated driver**: paper W2 vLLM results were obtained by
   running the W1 vLLM driver with W2's cell parameters. Cell-parameter
   table is in `w2/README.md`; tweak as needed when invoking
