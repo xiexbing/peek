@@ -21,10 +21,15 @@
 #   SKIP_BENCH=1 bash scripts/install_peek_sglang.sh       # peek + sglang only
 #
 # Env knobs:
-#   PY                 Python interpreter (default: python3 from PATH)
+#   PY                 Python interpreter (default: python3 from PATH). If PY
+#                      points at a venv python (i.e. <venv>/bin/python with
+#                      <venv>/pyvenv.cfg present), VIRTUAL_ENV is auto-set so
+#                      maturin can find the env without a prior `activate`.
 #   CARGO_HOME         Where rustup installs (default: $HOME/.cargo)
 #   SKIP_RUST=1        Don't try to install Rust -- assume cargo is on PATH
 #   SKIP_BUILD=1       Skip the maturin build (already-built peek)
+#   FORCE_BUILD=1      Rebuild even if `from peek import PendingTree` works
+#                      (default: auto-skip when peek already imports cleanly)
 #   SKIP_SGLANG=1      Don't install sglang (already installed)
 #   SKIP_BENCH=1       Don't install bench deps
 #   SKIP_LIBNUMA=1     Don't apt-install libnuma-dev (already present)
@@ -48,6 +53,22 @@ SGLANG_VERSION="${SGLANG_VERSION:-0.5.9}"
 
 echo "[peek+sglang] repo=$REPO_ROOT"
 echo "[peek+sglang] python=$($PY --version 2>&1)  ($(command -v "$PY"))"
+
+# Auto-derive VIRTUAL_ENV from $PY when the user pointed PY at a venv
+# python but didn't `source <venv>/bin/activate`. maturin requires
+# VIRTUAL_ENV (or CONDA_PREFIX) to be set; this lets the PY=... knob
+# work standalone.
+if [[ -z "${VIRTUAL_ENV:-}" && -z "${CONDA_PREFIX:-}" ]]; then
+  PY_BIN="$(command -v "$PY" 2>/dev/null || true)"
+  if [[ -n "$PY_BIN" ]]; then
+    PY_VENV_GUESS="$(dirname "$(dirname "$PY_BIN")")"
+    if [[ -f "$PY_VENV_GUESS/pyvenv.cfg" ]]; then
+      export VIRTUAL_ENV="$PY_VENV_GUESS"
+      export PATH="$PY_VENV_GUESS/bin:$PATH"
+      echo "[peek+sglang] auto-activated venv at $VIRTUAL_ENV (derived from PY)"
+    fi
+  fi
+fi
 
 # ---------- 0. libnuma (sglang/torch runtime requirement) ----------------
 # sglang's torch build links libnuma; without it the engine fails to import.
@@ -89,7 +110,14 @@ fi
 echo "[peek+sglang] maturin: $("$PY" -m maturin --version 2>&1 || maturin --version)"
 
 # ---------- 3. Build + install peek (Rust + Python wheel) ----------------
-if [[ "$SKIP_BUILD" != "1" ]]; then
+SKIP_BUILD_AUTO=0
+if [[ "$SKIP_BUILD" != "1" && "${FORCE_BUILD:-0}" != "1" ]]; then
+  if "$PY" -c "import peek; from peek import PendingTree; PendingTree()" 2>/dev/null; then
+    echo "[peek+sglang] peek already built and importable; skipping maturin (FORCE_BUILD=1 to rebuild)"
+    SKIP_BUILD_AUTO=1
+  fi
+fi
+if [[ "$SKIP_BUILD" != "1" && "$SKIP_BUILD_AUTO" != "1" ]]; then
   echo "[peek+sglang] building peek native module via 'maturin develop --release'"
   ( cd "$REPO_ROOT" && "$PY" -m maturin develop --release )
 fi
@@ -124,9 +152,13 @@ fi
 
 # ---------- 5. bench/test deps -------------------------------------------
 if [[ "$SKIP_BENCH" != "1" ]]; then
-  echo "[peek+sglang] installing bench deps (aiohttp, transformers, datasets)"
-  "$PY" -m pip install --quiet aiohttp transformers datasets
-  echo "[peek+sglang] bench deps installed"
+  if "$PY" -c "import aiohttp, transformers, datasets" 2>/dev/null; then
+    echo "[peek+sglang] bench deps already present"
+  else
+    echo "[peek+sglang] installing bench deps (aiohttp, transformers, datasets)"
+    "$PY" -m pip install --quiet aiohttp transformers datasets
+    echo "[peek+sglang] bench deps installed"
+  fi
 fi
 
 # ---------- 6. (optional) apply offline source-level patches -------------

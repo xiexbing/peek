@@ -18,8 +18,10 @@
 from peek.preset import apply as _apply_preset
 _apply_preset()
 
-# Auto-patch supported backends on import
-from peek.offline.install import install_all as _install_all
+# Auto-patch supported backends on import. The implementation lives in
+# `_patcher` (not `install`) so that `python -m peek.offline.install` does
+# not double-load and emit a runpy RuntimeWarning.
+from peek.offline._patcher import install_all as _install_all
 _install_all()
 
 from peek.offline.prompt import PromptRequest

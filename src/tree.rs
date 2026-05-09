@@ -365,22 +365,18 @@ impl Tree {
                 }
                 // Create a new branch for the remaining tokens.
                 let remainder = tokens[consumed..].to_vec();
-                let rem_len = remainder.len();
                 let first = remainder[0];
                 let leaf = self.alloc(remainder, node);
                 self.node_mut(node).children.insert(first, leaf);
                 node = leaf;
-                consumed += rem_len;
                 break;
             }
             // No matching child -> create a fresh leaf for remaining tokens.
             let remainder = tokens[consumed..].to_vec();
-            let rem_len = remainder.len();
             let first = remainder[0];
             let leaf = self.alloc(remainder, node);
             self.node_mut(node).children.insert(first, leaf);
             node = leaf;
-            consumed += rem_len;
             break;
         }
         // Update EWMA at the terminal node.
