@@ -24,9 +24,13 @@ In every example below, replace `<hf-id>` with a HuggingFace model id
 bash scripts/install_peek_sglang.sh
 ```
 
-**Launch the server** with cluster-aware scheduling and queue-aware eviction:
+**Launch the server** with cluster-aware scheduling and queue-aware eviction.
+The `peek_sitecustomize` directory must be on `PYTHONPATH` so peek's
+`patch_hook` runs before `sglang.launch_server` instantiates the scheduler:
 
 ```bash
+export PYTHONPATH="$(pwd)/scripts/peek_sitecustomize:${PYTHONPATH:-}"
+
 PEEK_ONLINE_SCHEDULER=1 \
 PEEK_ONLINE_EVICTION=1 \
 PEEK_ONLINE_CLPM=1 \

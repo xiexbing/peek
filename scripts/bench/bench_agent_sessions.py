@@ -259,7 +259,7 @@ async def main() -> None:
     parser.add_argument("--think-time-mean", type=float, default=1.0)
     parser.add_argument("--max-tokens", type=int, default=300)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--output", default="/workspace/peek/bench_results.json")
+    parser.add_argument("--output", default="bench_results.json")
     parser.add_argument("--label", default="run")
     parser.add_argument(
         "--idle-fraction", type=float, default=0.0,

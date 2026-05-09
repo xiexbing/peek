@@ -812,6 +812,14 @@ class _ReqAdapter:
 if _ENABLED:
     try:
         _install()
+    except ModuleNotFoundError as e:
+        # Expected when this hook is imported in an env that does not have
+        # vllm installed (e.g. the sglang env, where peek_sitecustomize tries
+        # both engines and lets the wrong one no-op). Log at debug only.
+        if (e.name or "").split(".")[0] == "vllm":
+            _log.debug("peek: vllm not importable (%s); skipping vllm hook", e)
+        else:
+            _log.exception("peek: vllm integration failed; running vanilla: %s", e)
     except Exception as e:
         _log.exception("peek: vllm integration failed; running vanilla: %s", e)
 else:

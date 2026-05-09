@@ -44,9 +44,10 @@ MEM_FRAC="${MEM_FRAC:-0.88}"
 PORT="${PORT:-30000}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w2/results}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-1800}"
-HF_HOME="${HF_HOME:-/workspace/hf-cache}"
+HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 PY="${PY:-python3}"
 BENCH="${BENCH:-$REPO_ROOT/scripts/bench/bench_shared_prompts.py}"
+SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 
 CELLS="${CELLS:-A B C D0 D1 D2 D3 D4}"
 RATES="${RATES:-moderate heavy}"
@@ -154,6 +155,7 @@ launch_server() {
   echo "[w2] launching $policy (sched=$sched tp=${TP:-1} env='$env_pref') -> $slog"
   env \
     HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME" \
+    PYTHONPATH="$SITECUSTOMIZE_DIR:${PYTHONPATH:-}" \
     $env_pref \
     "$PY" -m sglang.launch_server \
       --model "$MODEL" \

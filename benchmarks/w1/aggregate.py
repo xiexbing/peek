@@ -68,10 +68,11 @@ def parse_path(path: str) -> tuple:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
+    _here = os.path.dirname(os.path.abspath(__file__))
     ap.add_argument("--results-dir",
-                    default="/workspace/peek/benchmarks/w1/results")
+                    default=os.path.join(_here, "results"))
     ap.add_argument("--out-dir",
-                    default="/workspace/peek/benchmarks/w1")
+                    default=_here)
     ap.add_argument("--baseline", default="lpm_lru",
                     help="policy name used as reference in delta.csv (default lpm_lru)")
     args = ap.parse_args()

@@ -117,11 +117,20 @@ mapping.
 
 ### SGLang
 
+SGLang's scheduler runs in the launching Python process, so peek's
+`patch_hook` must be imported *before* `sglang.launch_server`. The
+provided `sitecustomize.py` shim does that automatically when placed on
+`PYTHONPATH`:
+
 ```bash
-python -c "import peek.online.engines.sglang.patch_hook"
+export PYTHONPATH="$(pwd)/scripts/peek_sitecustomize:${PYTHONPATH:-}"
 PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_EVICTION=1 PEEK_ONLINE_CLPM=1 \
   python -m sglang.launch_server --schedule-policy lpm ...
 ```
+
+> **Note.** Without `peek_sitecustomize` on `PYTHONPATH` the
+> `PEEK_ONLINE_*` flags will be visible to the process but the
+> `patch_hook` is never imported, so the engine runs vanilla sglang.
 
 ### vLLM
 
@@ -253,6 +262,7 @@ the LPM tiebreak). `<port>` is `30000` for SGLang, `8000` for vLLM.
 **SGLang (W1, W2, W4, W5):**
 
 ```bash
+export PYTHONPATH="$(pwd)/scripts/peek_sitecustomize:${PYTHONPATH:-}"
 PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_EVICTION=1 PEEK_ONLINE_CLPM=1 \
 PEEK_ONLINE_CLPM_GROUP_MAJOR=1 PEEK_ONLINE_CLPM_DYNAMIC_LANE=1 \
 PEEK_ONLINE_EVICTION_MODE=cluster \

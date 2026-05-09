@@ -21,8 +21,9 @@ BENCH="${BENCH:-$REPO_ROOT/scripts/bench/bench_shared_prompts.py}"
 MODEL="${MODEL:-meta-llama/Llama-3.1-70B-Instruct}"
 PORT="${PORT:-30000}"
 MEM_FRAC="${MEM_FRAC:-0.88}"
-HF_HOME="${HF_HOME:-/workspace/.cache/huggingface}"
+HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w3/results_sglang_dp2}"
+SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 
 TP="${TP:-2}"
 DP="${DP:-2}"
@@ -71,6 +72,7 @@ launch_server() {
   echo "[w3-dp2] launching $policy router (tp=$TP dp=$DP policy=$ROUTER_POLICY env='$env_pref')"
   env HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME/hub" \
       HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+      PYTHONPATH="$SITECUSTOMIZE_DIR:${PYTHONPATH:-}" \
       $env_pref "$PY" -m sglang_router.launch_server \
       --model-path "$MODEL" \
       --tp "$TP" --dp-size "$DP" \

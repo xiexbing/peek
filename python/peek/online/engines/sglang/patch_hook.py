@@ -955,6 +955,14 @@ def _install() -> None:
 if _ENABLED:
     try:
         _install()
+    except ModuleNotFoundError as e:
+        # Expected when this hook is imported in an env that does not have
+        # sglang installed (e.g. the vllm env, where peek_sitecustomize tries
+        # both engines and lets the wrong one no-op). Log at debug only.
+        if (e.name or "").split(".")[0] == "sglang":
+            _log.debug("peek: sglang not importable (%s); skipping sglang hook", e)
+        else:
+            _log.exception("peek: integration failed; continuing as vanilla: %s", e)
     except Exception as e:
         _log.exception("peek: integration failed; continuing as vanilla: %s", e)
 else:

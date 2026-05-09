@@ -37,7 +37,7 @@ RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w1/results_vllm}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-1800}"
 # Wait progressively for either /v1/models 200 or a log-marker. Polling
 # /health alone is fragile across vllm versions.
-HF_HOME="${HF_HOME:-/workspace/hf-cache}"
+HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 PY="${PY:-python3}"
 BENCH="${BENCH:-$REPO_ROOT/scripts/bench/bench_shared_prompts.py}"
 SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"

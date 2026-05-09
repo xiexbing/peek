@@ -32,9 +32,10 @@ BENCH="${BENCH:-$REPO_ROOT/scripts/bench/bench_shared_prompts.py}"
 MODEL="${MODEL:-meta-llama/Llama-3.1-70B-Instruct}"
 PORT="${PORT:-30000}"
 MEM_FRAC="${MEM_FRAC:-0.88}"
-HF_HOME="${HF_HOME:-/workspace/.cache/huggingface}"
+HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w3/results_sglang}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-1800}"
+SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 
 TP="${TP:-2}"
 
@@ -112,6 +113,7 @@ launch_server() {
 
   echo "[w3-sglang] launching $policy (sched=$sched tp=$TP env='$env_pref') -> $slog"
   env HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME" \
+      PYTHONPATH="$SITECUSTOMIZE_DIR:${PYTHONPATH:-}" \
       $env_pref "$PY" -m sglang.launch_server \
       --model "$MODEL" \
       --tp "$TP" \

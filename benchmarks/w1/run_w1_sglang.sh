@@ -38,7 +38,8 @@
 #     Cell C: all 8 policies (full ablation + baselines)
 #     Cells A/B/D: 3-policy subset (lpm_lru, clpm_gm, clpm_gm_pe) for the oversubscription-sensitivity trend
 #
-#   Budget ~20 GPU-hours on 1xH100 (single-seed) / ~60 hrs for 3 seeds.
+#   Budget ~12 GPU-hours single-seed / ~35 GPU-hours full 3-seed matrix
+#   on 1xH100 (see README.md for the per-cell breakdown).
 #
 # Usage
 #   bash benchmarks/w1/run_w1_sglang.sh                               # full matrix, 3 seeds
@@ -55,9 +56,14 @@ MEM_FRAC="${MEM_FRAC:-0.88}"
 PORT="${PORT:-30000}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w1/results}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-1800}"
-HF_HOME="${HF_HOME:-/workspace/hf-cache}"
+HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 PY="${PY:-python3}"
 BENCH="${BENCH:-$REPO_ROOT/scripts/bench/bench_shared_prompts.py}"
+# peek's sglang patch_hook is loaded into the sglang scheduler process via a
+# sitecustomize.py shim on PYTHONPATH. Without this, `PEEK_ONLINE_*` env vars
+# install but produce no behavior change (silent baseline). Mirrors the vllm
+# driver convention.
+SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 
 CELLS="${CELLS:-A B C D}"
 RATES="${RATES:-moderate heavy}"
@@ -152,6 +158,7 @@ launch_server() {
   echo "[w1] launching $policy (sched=$sched tp=${TP:-1} cuda_graph=$([[ "$DISABLE_CUDA_GRAPH" == "1" ]] && echo off || echo on) env='$env_pref') -> $slog"
   env \
     HF_HOME="$HF_HOME" HF_HUB_CACHE="$HF_HOME" \
+    PYTHONPATH="$SITECUSTOMIZE_DIR:${PYTHONPATH:-}" \
     $env_pref \
     "$PY" -m sglang.launch_server \
       --model "$MODEL" \
@@ -251,6 +258,14 @@ run_one() {
 # policy, set FULL_RESTART=1 to get one launch per run (paper-ironclad,
 # ~156 launches, +12 GPU-hrs).
 FULL_RESTART="${FULL_RESTART:-0}"
+
+# Preflight: peek + sglang importable, sitecustomize shim present. Catches
+# the silent-no-op failure mode (PEEK_ONLINE_* env vars set but patch_hook
+# never imported into the engine process).
+"$PY" -c "import peek.online.engines.sglang.patch_hook" 2>/dev/null \
+  || { echo "[w1] preflight FAIL: peek.online.engines.sglang.patch_hook not importable -- run 'maturin develop --release' and 'pip install sglang[all]==0.5.9' first"; exit 1; }
+[[ -f "$SITECUSTOMIZE_DIR/sitecustomize.py" ]] \
+  || { echo "[w1] preflight FAIL: sitecustomize shim missing: $SITECUSTOMIZE_DIR/sitecustomize.py"; exit 1; }
 
 # Build per-policy plan maps: policy -> list of "seed|cell|rate_label" entries.
 declare -A policy_plan   # policy -> newline-separated list

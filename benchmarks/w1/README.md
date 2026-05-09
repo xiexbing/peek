@@ -2,7 +2,8 @@
 
 > Environment: sglang 0.5.9 / vllm 0.19.1, torch 2.9.1, Python 3.12,
 > 1xH100 80GB (bf16). Full spec at `benchmarks/ENVIRONMENT.md`.
-> sglang driver: this README. vllm driver: `README_vllm.md`.
+> sglang driver: `run_w1_sglang.sh`. vllm driver: `run_w1_vllm.sh`.
+> Both drivers documented in this README.
 > Rate calibration: per-engine, per-cell. r_sat = highest rate with
 > `errored=0` AND `slo_attainment_pct >= 90%`; `moderate = 0.4 x r_sat`, `heavy = 0.8 x r_sat`. See
 > `benchmarks/ENVIRONMENT.md#rate-calibration-moderate--heavy-per-cell`.
@@ -31,14 +32,18 @@ that shows how peek's advantage scales with KV pressure.
 | C    | 100 | 4096   | 1000 | 200    | 410 K        | 8x (PRIMARY) |
 | D    | 200 | 4096   | 2000 | 400    | 820 K        | 16x (extreme) |
 
-### Rates per cell (req/s; planning estimates -- recalibrate from r_sat probe)
+### Rates per cell (req/s; calibrated against LPM+LRU baseline)
 
 | cell | moderate | heavy |
 | ---- | -------- | ----- |
-| A    | 8        | 16    |
-| B    | 6        | 12    |
-| C    | 3        | 6     |
-| D    | 2        | 4     |
+| A    | 40       | 60    |
+| B    | 35       | 80    |
+| C    | 4        | 8     |
+| D    | 12       | 24    |
+
+`moderate` sustains queue p50 ∈ [60, 127]; `heavy` sustains queue ≥ 128
+(SGLang's LPM-fallback boundary). See `cell_rate()` in
+`run_w1_sglang.sh` for the canonical values.
 
 Arrival is **Poisson** (inter-arrival = `Exp(rate)`). Group assignment is
 **Zipf α=1.0** (canonical). Decode is **fixed `max_tokens=128`**.
@@ -114,9 +119,21 @@ CELLS="A" POLICIES_CORE="lpm_lru clpm_gm_pe" SEEDS="42" RATES="moderate" \
   bash benchmarks/w1/run_w1_sglang.sh
 ```
 
-### Other drivers (not yet written)
+### vLLM driver
 
-- `run_w1_vllm.sh` -- for the fcfs_apc_lru vLLM external baseline
+`run_w1_vllm.sh` runs the same matrix on vLLM 0.19.1; it carries the
+`fcfs_apc_lru` external baseline plus the peek policies adapted to
+vllm's v1 scheduler. Usage is identical (`CELLS=`, `POLICIES_FULL=`,
+`SEEDS=`, `RATES=`).
+
+```bash
+bash benchmarks/w1/run_w1_vllm.sh                              # full matrix
+CELLS="C" bash benchmarks/w1/run_w1_vllm.sh                    # primary cell
+```
+
+Results land in `benchmarks/w1/results_vllm/` (parallel layout to
+`results/`). vLLM and SGLang require separate Python envs (incompatible
+torch pins).
 
 ### Resume after interruption
 

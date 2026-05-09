@@ -33,6 +33,7 @@ MEM_FRAC="${MEM_FRAC:-0.88}"
 PORT="${PORT:-30000}"
 PY="${PY:-python3}"
 SERVER_READY_TIMEOUT_S="${SERVER_READY_TIMEOUT_S:-600}"
+SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 
 POLICIES="${POLICIES:-lpm_lru clpm_gm_dl clpm_gm_dl_pe}"
 SEEDS="${SEEDS:-42 142 242}"
@@ -83,7 +84,7 @@ launch_server() {
   local sched; sched="$(policy_schedule "$policy")"
 
   echo "[w4] launching $policy  schedule=$sched  env='$env_pref'  -> $slog"
-  env $env_pref "$PY" -m sglang.launch_server \
+  env PYTHONPATH="$SITECUSTOMIZE_DIR:${PYTHONPATH:-}" $env_pref "$PY" -m sglang.launch_server \
     --model-path "$MODEL" \
     --mem-fraction-static "$MEM_FRAC" \
     --schedule-policy "$sched" \

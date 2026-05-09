@@ -41,7 +41,7 @@ MODEL="${MODEL:-meta-llama/Llama-3.1-70B-Instruct}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"
 PORT="${PORT:-30000}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w3/results_vllm}"
-HF_HOME="${HF_HOME:-/workspace/.cache/huggingface}"
+HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 BENCH="${BENCH:-$REPO_ROOT/scripts/bench/bench_shared_prompts.py}"
 SITECUSTOMIZE_DIR="${SITECUSTOMIZE_DIR:-$REPO_ROOT/scripts/peek_sitecustomize}"
 

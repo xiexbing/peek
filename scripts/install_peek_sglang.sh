@@ -171,13 +171,15 @@ echo
 echo "[peek+sglang] done."
 echo
 echo "[peek+sglang] To run with PEEK ONLINE (cluster-LPM scheduler + queue-aware eviction):"
+echo "  export PYTHONPATH=\"\$(pwd)/scripts/peek_sitecustomize:\${PYTHONPATH:-}\""
 echo "  PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_EVICTION=1 PEEK_ONLINE_CLPM=1 \\"
 echo "  python -m sglang.launch_server \\"
 echo "    --model <hf-id> \\"
 echo "    --schedule-policy lpm \\"
 echo "    --enable-cache-report"
-echo "  # (peek.online.engines.sglang.patch_hook is auto-imported by sglang's"
-echo "  #  scheduler process when PEEK_ONLINE_* flags are set.)"
+echo "  # peek_sitecustomize on PYTHONPATH is REQUIRED -- it imports peek's"
+echo "  # sglang patch_hook before sglang.launch_server runs. Without it, the"
+echo "  # PEEK_ONLINE_* flags install but produce no behavior change."
 echo
 echo "[peek+sglang] To run with PEEK OFFLINE (DFS reorder + queue-aware eviction):"
 echo "  APPLY_OFFLINE_PATCHES=1 bash scripts/install_peek_sglang.sh   # one-time"

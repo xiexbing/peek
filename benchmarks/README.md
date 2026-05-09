@@ -91,7 +91,7 @@ python benchmarks/w1/aggregate.py
 | `RATES`                 | `moderate heavy`                         | load levels                                        |
 | `POLICIES`              | per-W default                            | comma-or-space list of filesystem IDs              |
 | `RESULTS_DIR`           | `<W>/results/`                           | where JSON results land                            |
-| `HF_HOME`               | `/workspace/hf-cache`                    | HuggingFace cache (override for shared mounts)     |
+| `HF_HOME`               | `$HOME/.cache/huggingface`               | HuggingFace cache (override for shared mounts)     |
 | `SERVER_READY_TIMEOUT_S`| 1800                                     | 30 min model load timeout                          |
 
 ## Seeds, warmup, statistical reporting

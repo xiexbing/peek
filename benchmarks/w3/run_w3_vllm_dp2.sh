@@ -31,7 +31,7 @@ WORKER_A_PORT="${WORKER_A_PORT:-31000}"
 WORKER_B_PORT="${WORKER_B_PORT:-31001}"
 
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.9}"
-HF_HOME="${HF_HOME:-/workspace/.cache/huggingface}"
+HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 RESULTS_DIR="${RESULTS_DIR:-$REPO_ROOT/benchmarks/w3/results_vllm_dp2}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-9728}"
 ROUTER_POLICY="${ROUTER_POLICY:-cache_aware}"
