@@ -7,8 +7,6 @@
 > `benchmarks/ENVIRONMENT.md#rate-calibration-moderate--heavy-per-cell`.
 
 
-**Status: DRAFT.**
-
 ## Purpose
 
 Prove peek **does not regress** on LPM-unfriendly workloads: mixed traffic
@@ -75,23 +73,16 @@ dynamic lane can starve singletons. clpm_gm_dl fixes it.
 
 ## Cells
 
-Draft -- W5 axes are the **sharing ratio**:
+W5 axes are **prompt length** (singleton-dominated traffic in both):
 
-| cell | shared % | singleton % | purpose |
-| ---- | -------- | ----------- | ------- |
-| A    | 60       | 40          | moderate sharing -- typical SaaS chat |
-| **B** | **40**  | **60**      | **PRIMARY** -- canonical heterogeneous |
-| C    | 20       | 80          | singleton-dominated -- worst case for LPM-style schedulers |
+| cell        | prompt range  | decode range | N    | warmup | role        |
+| ----------- | ------------- | ------------ | ---- | ------ | ----------- |
+| `C_short`   | 32 - 1024 tok | 64 - 256     | 1500 | 100    | typical SaaS chat |
+| `C_long`    | 512 - 4096 tok | 64 - 256    | 1500 | 100    | longer-form chat / instruction tasks |
 
-## Rates
-
-Moderate only (this is a safety test, not a scaling claim):
-
-| cell | moderate |
-| ---- | -------- |
-| A (60/40) | 5 |
-| B (40/60) | 5 |
-| C (20/80) | 5 |
+The canonical values live in `run_w5_sglang.sh` / `run_w5_vllm.sh`; see
+each driver for `cell_rate()` (the calibrated `moderate` and `heavy`
+arrival rates per cell).
 
 ## Seeds
 
@@ -107,13 +98,18 @@ singleton-segment) as well as aggregate:
 - Shared-segment metrics -- may improve (peek's normal advantage)
 - Aggregate metrics -- must be ≈ stock (within ±3%)
 
-## What we need to build
+## Drivers
 
-- **Mixed-distribution workload generator** -- partial existing
-  infrastructure (`bench_shared_prompts.py` does shared-only; needs a
-  knob to inject a singleton fraction with lognormal prompt length)
-- **Per-class metric aggregation** -- split by "which class was this req"
-  at report time
+```bash
+bash benchmarks/w5/run_w5_sglang.sh           # sglang side, full matrix
+bash benchmarks/w5/run_w5_vllm.sh             # vllm side, full matrix
+```
+
+The sglang driver uses `scripts/bench/bench_lmsys_singleton.py` to
+stream LMSYS-Chat-1M (singleton-dominated traffic); the vllm driver
+uses `scripts/bench/bench_shared_prompts.py` configured with the same
+sharing-ratio knobs. Subset overrides: `POLICIES=lpm_lru CELLS=C_short
+SEEDS=42 bash run_w5_sglang.sh`.
 
 ## Pre-registered predictions
 
@@ -135,8 +131,3 @@ singleton-segment) as well as aggregate:
   is either always-needed-and-works or always-unnecessary. Either is a
   valid finding but changes the narrative.
 
-## Status
-
-Draft. Workload generator needs a small extension. No urgent timeline --
-W5 runs last (after W1/W3/W4 confirm peek's positive claims; W5 seals
-the "doesn't hurt" story).

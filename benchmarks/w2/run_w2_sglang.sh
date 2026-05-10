@@ -113,7 +113,6 @@ policy_env() {
   case "$1" in
     lpm_lru) echo "" ;;
     fcfs_lru) echo "" ;;
-    fcfs_lru) echo "" ;;  # alias for fcfs_lru (FCFS)
     lpm_pe) echo "PEEK_ONLINE_EVICTION=1 PEEK_ONLINE_EVICTION_MODE=cluster" ;;
     clpm) echo "PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1" ;;
     clpm_gm) echo "PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 PEEK_ONLINE_CLPM_GROUP_MAJOR=1" ;;
@@ -126,7 +125,7 @@ policy_env() {
 
 policy_sched() {
   case "$1" in
-    fcfs_lru|fcfs_lru) echo "fcfs" ;;
+    fcfs_lru) echo "fcfs" ;;
     *)     echo "lpm"  ;;
   esac
 }

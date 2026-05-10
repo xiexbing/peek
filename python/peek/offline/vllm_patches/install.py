@@ -15,14 +15,17 @@
 
 """Install Peek queue-aware eviction patches into an existing vLLM v1 installation.
 
-Patches 3 files:
+Patches 4 files:
   1. kv_cache_utils.py  -- adds queue_ref_count to KVCacheBlock, queue-aware popleft
   2. block_pool.py      -- adds reset/inc queue ref methods, queue-aware get_new_blocks
   3. scheduler.py       -- adds _update_queue_refs() hook in schedule()
+  4. cache.py           -- adds enable_queue_aware_eviction CacheConfig field
 
 Usage:
     python vllm_patches/install.py                  # auto-detect vllm location
     python vllm_patches/install.py /path/to/vllm    # explicit vllm package path
+    python vllm_patches/install.py --revert         # restore each patched file
+                                                    # from its .peek_bak backup
 
 To verify:
     python -c "from vllm.v1.core.kv_cache_utils import KVCacheBlock; b = KVCacheBlock(0); print('queue_ref_count' in dir(b))"
@@ -58,6 +61,35 @@ def backup(path: Path) -> None:
     if not bak.exists():
         shutil.copy2(path, bak)
         print(f"  Backed up {path.name} -> {bak.name}")
+
+
+# Files this installer patches; relative to the vllm package root.
+PATCHED_FILES = (
+    Path("v1") / "core" / "kv_cache_utils.py",
+    Path("v1") / "core" / "block_pool.py",
+    Path("v1") / "core" / "sched" / "scheduler.py",
+    Path("config") / "cache.py",
+)
+
+
+def revert(vllm_dir: Path) -> int:
+    """Restore each patched file from its .peek_bak backup.
+
+    Returns the number of files restored. Files without a backup are
+    reported and skipped.
+    """
+    restored = 0
+    for rel in PATCHED_FILES:
+        path = vllm_dir / rel
+        bak = path.with_suffix(path.suffix + ".peek_bak")
+        if not bak.exists():
+            print(f"  SKIP: {rel} -- no backup at {bak.name}")
+            continue
+        shutil.copy2(bak, path)
+        bak.unlink()
+        print(f"  RESTORED: {rel} from {bak.name}")
+        restored += 1
+    return restored
 
 
 # -----------------------------------------------------------------------
@@ -371,9 +403,17 @@ def patch_cache_config(vllm_dir: Path) -> bool:
 # -----------------------------------------------------------------------
 
 def main():
-    explicit = sys.argv[1] if len(sys.argv) > 1 else None
+    args = sys.argv[1:]
+    do_revert = False
+    if "--revert" in args:
+        do_revert = True
+        args = [a for a in args if a != "--revert"]
+    explicit = args[0] if args else None
 
-    print("Peek: Installing prefix-aware scheduling + queue-aware eviction patches into vLLM")
+    if do_revert:
+        print("Peek: Reverting prefix-aware scheduling + queue-aware eviction patches from vLLM")
+    else:
+        print("Peek: Installing prefix-aware scheduling + queue-aware eviction patches into vLLM")
     print()
 
     try:
@@ -384,6 +424,12 @@ def main():
 
     print(f"  vllm location: {vllm_dir}")
     print()
+
+    if do_revert:
+        n = revert(vllm_dir)
+        print()
+        print(f"Reverted {n} file(s).")
+        return
 
     results = [
         ("kv_cache_utils.py", patch_kv_cache_utils(vllm_dir)),

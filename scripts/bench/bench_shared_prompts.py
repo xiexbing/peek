@@ -46,8 +46,7 @@ def _try_load_loogle(max_docs: int):
     """Load LooGLE longdep_qa directly via the datasets library.
 
     Returns list[{context, title, questions}] on success, None on failure
-    (no network, dataset cache missing, etc). Self-contained -- does not
-    import from superkv to avoid sys.path conflicts with our peek package.
+    (no network, dataset cache missing, etc).
     """
     import json as _json
     try:

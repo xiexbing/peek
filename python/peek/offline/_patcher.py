@@ -127,3 +127,63 @@ def install_all(force: bool = False) -> None:
         patched.append("vllm")
     if patched:
         print(f"peek: patches verified for {', '.join(patched)}")
+
+
+def _run_installer(install_script: Path, *extra_args: str) -> bool:
+    """Run an engine-specific install.py with optional flags."""
+    if not install_script.exists():
+        print(f"peek: {install_script} not found", file=sys.stderr)
+        return False
+    result = subprocess.run(
+        [sys.executable, str(install_script), *extra_args],
+        capture_output=True, text=True,
+    )
+    sys.stdout.write(result.stdout)
+    if result.returncode != 0:
+        sys.stderr.write(result.stderr)
+        return False
+    return True
+
+
+def revert_sglang() -> bool:
+    """Restore patched sglang files from their .peek_bak backups.
+
+    Returns True if the revert helper ran successfully (even if some files
+    had no backup); False if sglang isn't importable or the helper failed.
+    """
+    try:
+        importlib.import_module("sglang")
+    except ImportError:
+        print("peek: sglang not installed; nothing to revert.", file=sys.stderr)
+        return False
+    ok = _run_installer(_PATCHES_DIR / "install.py", "--revert")
+    # Force a re-import so the restored modules are picked up next access.
+    for mod_name in list(sys.modules):
+        if mod_name.startswith("sglang.srt.mem_cache") or mod_name.startswith("sglang.srt.managers"):
+            del sys.modules[mod_name]
+    return ok
+
+
+def revert_vllm() -> bool:
+    """Restore patched vllm files from their .peek_bak backups.
+
+    Returns True if the revert helper ran successfully (even if some files
+    had no backup); False if vllm isn't importable or the helper failed.
+    """
+    try:
+        importlib.import_module("vllm")
+    except ImportError:
+        print("peek: vllm not installed; nothing to revert.", file=sys.stderr)
+        return False
+    return _run_installer(_VLLM_PATCHES_DIR / "install.py", "--revert")
+
+
+def revert_all() -> None:
+    """Revert all detected backends."""
+    reverted = []
+    if revert_sglang():
+        reverted.append("sglang")
+    if revert_vllm():
+        reverted.append("vllm")
+    if reverted:
+        print(f"peek: reverted {', '.join(reverted)}")

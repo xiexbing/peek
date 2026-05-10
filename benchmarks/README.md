@@ -105,10 +105,6 @@ aggregator (the JSON layout is identical).
 
 ## What's not shipped
 
-- **W2 vLLM dedicated driver**: paper W2 vLLM results were obtained by
-  running the W1 vLLM driver with W2's cell parameters. Cell-parameter
-  table is in `w2/README.md`; tweak as needed when invoking
-  `run_w1_vllm.sh`.
 - Calibration / probe scripts (`probe_*.sh`, `calibrate.sh`) used during
   paper development -- these are noise for reviewers and were dropped.
   The cell rates baked into the run scripts are the calibrated values.

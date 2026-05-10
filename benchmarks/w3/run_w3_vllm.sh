@@ -34,8 +34,6 @@ set -uo pipefail
 # ------------------------------ config ------------------------------------
 
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-# vllm installed in /workspace/peek/ (sglang uninstalled to make room).
-VLLM_VENV="${VLLM_VENV:-/workspace/peek}"
 PY="${PY:-python3}"
 MODEL="${MODEL:-meta-llama/Llama-3.1-70B-Instruct}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"

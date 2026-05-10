@@ -52,10 +52,8 @@ The paper's primary configuration is `clpm_gm_dl_pe`.
 ## Drivers
 
 ```bash
-bash benchmarks/w2/run_w2_sglang.sh           # full matrix, 3 seeds
-# (vllm side: see paper §4.2 -- uses the same client + a vllm server;
-#  reachable via the W1 vllm driver with W2 cell parameters, or write
-#  a thin wrapper if you need a dedicated entry point.)
+bash benchmarks/w2/run_w2_sglang.sh           # sglang side, full matrix, 3 seeds
+bash benchmarks/w2/run_w2_vllm.sh             # vllm side (paper §4.2 Table 14)
 ```
 
 Subsets: `POLICIES=lpm_lru CELLS=B SEEDS=42 RATES=heavy bash run_w2_sglang.sh`.

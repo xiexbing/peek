@@ -21,7 +21,6 @@ set -uo pipefail
 # ------------------------------ config ------------------------------------
 
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-VENV_ROOT="${VENV_ROOT:-/workspace/peek}"
 MODEL="${MODEL:-google/gemma-2-27b-it}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.9}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-8192}"

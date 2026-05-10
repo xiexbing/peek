@@ -15,9 +15,12 @@
 """CLI entry point for installing Peek patches into supported inference backends.
 
 Usage:
-    python -m peek.offline.install          # patch all detected backends
-    python -m peek.offline.install sglang   # patch sglang only
-    python -m peek.offline.install vllm     # patch vllm only
+    python -m peek.offline.install                       # patch all detected backends
+    python -m peek.offline.install sglang                # patch sglang only
+    python -m peek.offline.install vllm                  # patch vllm only
+    python -m peek.offline.install sglang --revert       # restore sglang from .peek_bak
+    python -m peek.offline.install vllm   --revert       # restore vllm from .peek_bak
+    python -m peek.offline.install --revert              # revert all detected backends
 
 Importing `peek.offline` also runs `install_all()` automatically so that
 downstream `from peek.offline import ...` users get patched backends without
@@ -30,16 +33,40 @@ CLI shim only.
 import sys
 
 if __name__ == "__main__":
-    from peek.offline._patcher import install_all, patch_sglang, patch_vllm
+    from peek.offline._patcher import (
+        install_all,
+        patch_sglang,
+        patch_vllm,
+        revert_all,
+        revert_sglang,
+        revert_vllm,
+    )
 
-    targets = sys.argv[1:] if len(sys.argv) > 1 else ["all"]
+    args = sys.argv[1:]
+    do_revert = False
+    if "--revert" in args:
+        do_revert = True
+        args = [a for a in args if a != "--revert"]
+
+    targets = args if args else ["all"]
     for target in targets:
         if target == "all":
-            install_all(force=True)
+            if do_revert:
+                revert_all()
+            else:
+                install_all(force=True)
         elif target == "sglang":
-            patch_sglang(force=True)
+            if do_revert:
+                revert_sglang()
+            else:
+                patch_sglang(force=True)
         elif target == "vllm":
-            patch_vllm(force=True)
+            if do_revert:
+                revert_vllm()
+            else:
+                patch_vllm(force=True)
         else:
-            print(f"Unknown target: {target}. Use 'sglang', 'vllm', or 'all'.")
+            print(
+                f"Unknown target: {target}. Use 'sglang', 'vllm', or 'all'."
+            )
             sys.exit(1)

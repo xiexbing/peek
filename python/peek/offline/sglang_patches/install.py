@@ -24,6 +24,8 @@ Patches 4 files:
 Usage:
     python sglang_patches/install.py                    # auto-detect sglang location
     python sglang_patches/install.py /path/to/sglang    # explicit sglang package path
+    python sglang_patches/install.py --revert           # restore each patched file
+                                                        # from its .peek_bak backup
 
 To verify:
     python -c "from sglang.srt.mem_cache.evict_policy import QueueAwareStrategy; print('OK')"
@@ -60,6 +62,35 @@ def backup(path: Path) -> None:
     if not bak.exists():
         shutil.copy2(path, bak)
         print(f"  Backed up {path.name} -> {bak.name}")
+
+
+# Files this installer patches; relative to the sglang package root.
+PATCHED_FILES = (
+    Path("srt") / "mem_cache" / "evict_policy.py",
+    Path("srt") / "mem_cache" / "radix_cache.py",
+    Path("srt") / "managers" / "schedule_policy.py",
+    Path("srt") / "server_args.py",
+)
+
+
+def revert(sglang_dir: Path) -> int:
+    """Restore each patched file from its .peek_bak backup.
+
+    Returns the number of files restored. Files without a backup are
+    reported and skipped.
+    """
+    restored = 0
+    for rel in PATCHED_FILES:
+        path = sglang_dir / rel
+        bak = path.with_suffix(path.suffix + ".peek_bak")
+        if not bak.exists():
+            print(f"  SKIP: {rel} -- no backup at {bak.name}")
+            continue
+        shutil.copy2(bak, path)
+        bak.unlink()
+        print(f"  RESTORED: {rel} from {bak.name}")
+        restored += 1
+    return restored
 
 
 # -----------------------------------------------------------------------
@@ -498,9 +529,17 @@ def patch_server_args(sglang_dir: Path) -> bool:
 # -----------------------------------------------------------------------
 
 def main():
-    explicit = sys.argv[1] if len(sys.argv) > 1 else None
+    args = sys.argv[1:]
+    do_revert = False
+    if "--revert" in args:
+        do_revert = True
+        args = [a for a in args if a != "--revert"]
+    explicit = args[0] if args else None
 
-    print("Peek: Installing queue-aware eviction patches into sglang")
+    if do_revert:
+        print("Peek: Reverting queue-aware eviction patches from sglang")
+    else:
+        print("Peek: Installing queue-aware eviction patches into sglang")
     print()
 
     try:
@@ -511,6 +550,12 @@ def main():
 
     print(f"  sglang location: {sglang_dir}")
     print()
+
+    if do_revert:
+        n = revert(sglang_dir)
+        print()
+        print(f"Reverted {n} file(s).")
+        return
 
     results = [
         ("evict_policy.py", patch_evict_policy(sglang_dir)),

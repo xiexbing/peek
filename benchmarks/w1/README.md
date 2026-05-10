@@ -67,8 +67,8 @@ use graphs-on.
 | clpm_gm_pe | cLPM + GM (peek scheduler)                 | peek queue-aware (cluster mode) | **co-design (primary claim)**        |
 | clpm_gm_dl_pe | cLPM + GM + DL (peek scheduler)             | peek queue-aware (cluster mode) | co-design + fairness                 |
 
-**fcfs_apc_lru (vLLM)** and **superkv (SuperKV)** require separate harnesses and are not
-handled by `run_w1_sglang.sh`. See "External baselines" below.
+**fcfs_apc_lru (vLLM)** uses a separate harness (`run_w1_vllm.sh`) -- see
+"vLLM driver" below.
 
 ### Per-cell policy set
 
@@ -211,8 +211,9 @@ If yes at 4x and 8x, the co-design claim lands.
 
 ## External baselines (not in `run_w1_sglang.sh`)
 
-- **fcfs_apc_lru vLLM with `--enable-prefix-caching`**: requires separate bench harness.
-  Setup pending (~1 day).
+- **fcfs_apc_lru vLLM with `--enable-prefix-caching`**: shipped as
+  `run_w1_vllm.sh`; uses the same `bench_shared_prompts.py` client and
+  cell parameters. Run in a separate Python env (incompatible torch pin).
 
 ## Layout
 
@@ -221,7 +222,7 @@ benchmarks/w1/
 ├── README.md                   (this file)
 ├── run_w1_sglang.sh            driver for sglang-based policies (lpm_lru, fcfs_lru, lpm_pe-clpm_gm_dl_pe)
 ├── aggregate.py                post-hoc summary
-└── results/                    populated by drivers (gitignored)
+└── results/                    populated by drivers (not committed)
     └── seed_<seed>/
         └── cell_<cell>/
             └── rate_<rate>/
