@@ -12,8 +12,8 @@ vanilla and PEEK-enabled with environment flags.
 PEEK ships **two operating modes**:
 
 - **`peek.online`** *(this paper)* -- streaming-arrival serving. Rust-backed
-  pending radix tree + Cluster-LPM (cLPM) scheduler + queue-aware eviction.
-  Targets continuous arrivals under tight latency budgets.
+  pending radix tree + multi-lane Cluster-LPM (cLPM) scheduler + queue-aware
+  eviction. Targets continuous arrivals under tight latency budgets.
 - **`peek.offline`** -- batch-style serving. Python prefix trie + DFS reorder
   + queue-aware eviction (`queue-aware` cache policy). Targets known-batch
   and offline-throughput regimes.
