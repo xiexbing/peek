@@ -1,0 +1,182 @@
+diff --git a/python/sglang/srt/managers/schedule_policy.py b/python/sglang/srt/managers/schedule_policy.py
+index 1b34f0f..da4d8bc 100644
+--- a/python/sglang/srt/managers/schedule_policy.py
++++ b/python/sglang/srt/managers/schedule_policy.py
+@@ -189,6 +189,7 @@ class SchedulePolicy:
+                 SchedulePolicy._sort_by_priority_and_fcfs(
+                     waiting_queue, self.priority_sign
+                 )
++            self._update_queue_refs(waiting_queue)
+             return
+ 
+         if isinstance(policy, CacheAwarePolicy):
+@@ -220,6 +221,34 @@ class SchedulePolicy:
+             else:
+                 raise ValueError(f"Unknown CacheAgnostic Policy: {policy=}")
+ 
++        self._update_queue_refs(waiting_queue)
++
++    def _update_queue_refs(self, waiting_queue: List[Req]) -> None:
++        """Refresh per-node queue reference counts from the waiting queue.
++
++        No-op unless the radix cache uses the ``queue-aware`` eviction policy.
++        For each waiting request, the last node of its matched prefix (and all
++        ancestors) is marked as referenced, so ``QueueAwareStrategy`` evicts
++        blocks that no queued request needs before touching blocks a queued
++        request will reuse. Counts are rebuilt from scratch every scheduling
++        step, so protection tracks the live queue with no leakage.
++
++        This reuses the prefix match the scheduler already computed for each
++        request; a request without a match yet (e.g. an eviction policy paired
++        with a schedule policy that skips matching) is matched on demand.
++        """
++        tree_cache = self.tree_cache
++        if getattr(tree_cache, "eviction_policy", None) != "queue-aware":
++            return
++        tree_cache.reset_all_queue_refs()
++        for r in waiting_queue:
++            node = getattr(r, "last_node", None)
++            if node is None:
++                match_prefix_for_req(tree_cache, r)
++                node = r.last_node
++            if node is not None:
++                tree_cache.inc_queue_ref(node)
++
+     def _determine_active_policy(self, waiting_queue: List[Req]) -> Policy:
+         if self.policy == CacheAwarePolicy.LPM and len(waiting_queue) > 128:
+             # Turn off the expensive prefix matching and sorting when the #queue is large.
+diff --git a/python/sglang/srt/mem_cache/evict_policy.py b/python/sglang/srt/mem_cache/evict_policy.py
+index dad1625..7077965 100644
+--- a/python/sglang/srt/mem_cache/evict_policy.py
++++ b/python/sglang/srt/mem_cache/evict_policy.py
+@@ -63,3 +63,29 @@ class SLRUStrategy(EvictionStrategy):
+ 
+         is_protected = 1 if node.hit_count >= self.protected_threshold else 0
+         return (is_protected, node.last_access_time)
++
++
++class QueueAwareStrategy(EvictionStrategy):
++    """Queue-aware eviction: protect blocks that waiting requests will reuse.
++
++    ``TreeNode.queue_ref_count`` is refreshed every scheduling step from the
++    prefixes matched by the current waiting queue (see
++    ``SchedulePolicy._update_queue_refs``). This strategy turns that signal
++    into an eviction order.
++
++    Priority Logic (smaller value = evicted earlier):
++
++    Segment 0 (Unreferenced): queue_ref_count == 0
++        No waiting request needs these blocks -- evict first, LRU order.
++    Segment 1 (Referenced): queue_ref_count > 0
++        A waiting request will reuse this prefix. Evict last, and within the
++        segment evict the cheapest-to-recompute first: smaller
++        ``queue_ref_count * num_tokens`` (few dependents, short prefix), then
++        LRU as a final tiebreaker.
++    """
++
++    def get_priority(self, node: TreeNode) -> Tuple[int, float, float]:
++        is_referenced = 1 if node.queue_ref_count > 0 else 0
++        num_tokens = len(node.key) if node.key is not None else 0
++        cost = node.queue_ref_count * num_tokens
++        return (is_referenced, cost, node.last_access_time)
+diff --git a/python/sglang/srt/mem_cache/radix_cache.py b/python/sglang/srt/mem_cache/radix_cache.py
+index b4365b5..789470e 100644
+--- a/python/sglang/srt/mem_cache/radix_cache.py
++++ b/python/sglang/srt/mem_cache/radix_cache.py
+@@ -243,6 +243,10 @@ class TreeNode:
+         self.hash_value: Optional[List[str]] = None
+         # priority for priority-aware eviction
+         self.priority = priority
++        # queue-aware eviction: number of waiting-queue requests whose matched
++        # prefix passes through this node. Refreshed each scheduling step;
++        # ignored unless eviction_policy == "queue-aware".
++        self.queue_ref_count = 0
+ 
+         self.id = TreeNode.counter if id is None else id
+         TreeNode.counter += 1
+@@ -343,6 +347,9 @@ class RadixCache(KVCacheEventMixin, BasePrefixCache):
+         self.evictable_size_ = 0
+         self.protected_size_ = 0
+         self.evictable_leaves.clear()
++        # queue-aware eviction: nodes incremented since the last refresh, so a
++        # refresh only has to zero what it touched instead of walking the tree.
++        self._queue_ref_touched = []
+         self._empty_match_result = MatchResult(
+             device_indices=torch.empty(
+                 (0,),
+@@ -620,6 +627,34 @@ class RadixCache(KVCacheEventMixin, BasePrefixCache):
+             node = node.parent
+         return DecLockRefResult(delta=delta)
+ 
++    # ------------------------------------------------------------------
++    # Queue-aware eviction: reference counting
++    # ------------------------------------------------------------------
++
++    def inc_queue_ref(self, node: TreeNode) -> None:
++        """Mark ``node`` and its ancestors as needed by a waiting request.
++
++        Called once per waiting request with the last node of its matched
++        prefix, so every block on the root->node path is protected from
++        eviction while the request is queued.
++        """
++        self._queue_ref_touched.append(node)
++        while node is not None and node is not self.root_node:
++            node.queue_ref_count += 1
++            node = node.parent
++
++    def reset_all_queue_refs(self) -> None:
++        """Zero ``queue_ref_count`` on every node touched since the last reset.
++
++        Called at the start of each scheduling step before re-counting from
++        the current waiting queue.
++        """
++        for node in self._queue_ref_touched:
++            while node is not None and node is not self.root_node:
++                node.queue_ref_count = 0
++                node = node.parent
++        self._queue_ref_touched = []
++
+     def evictable_size(self):
+         return self.evictable_size_
+ 
+@@ -674,6 +709,7 @@ class RadixCache(KVCacheEventMixin, BasePrefixCache):
+         new_node.children = {key[split_len:].child_key(self.page_size): child}
+         new_node.parent = child.parent
+         new_node.lock_ref = child.lock_ref
++        new_node.queue_ref_count = child.queue_ref_count
+         new_node.key = child.key[:split_len]
+         new_node.value = child.value[:split_len].clone()
+         child.parent = new_node
+diff --git a/python/sglang/srt/mem_cache/utils.py b/python/sglang/srt/mem_cache/utils.py
+index 9b4aaed..c49763c 100644
+--- a/python/sglang/srt/mem_cache/utils.py
++++ b/python/sglang/srt/mem_cache/utils.py
+@@ -25,6 +25,7 @@ from sglang.srt.mem_cache.evict_policy import (
+     LRUStrategy,
+     MRUStrategy,
+     PriorityStrategy,
++    QueueAwareStrategy,
+     SLRUStrategy,
+ )
+ from sglang.srt.mem_cache.triton_ops.mla_buffer import (
+@@ -60,6 +61,7 @@ _EVICTION_POLICY_FACTORIES: dict[str, Callable[[], EvictionStrategy]] = {
+     "filo": FILOStrategy,
+     "priority": PriorityStrategy,
+     "slru": SLRUStrategy,
++    "queue-aware": QueueAwareStrategy,
+ }
+ 
+ 
+diff --git a/python/sglang/srt/server_args.py b/python/sglang/srt/server_args.py
+index c7162c1..00348eb 100644
+--- a/python/sglang/srt/server_args.py
++++ b/python/sglang/srt/server_args.py
+@@ -276,7 +276,7 @@ FP4_GEMM_RUNNER_BACKEND_CHOICES = [
+     "marlin",
+ ]
+ 
+-RADIX_EVICTION_POLICY_CHOICES = ["lru", "lfu", "slru", "priority"]
++RADIX_EVICTION_POLICY_CHOICES = ["lru", "lfu", "slru", "priority", "queue-aware"]
+ 
+ RL_ON_POLICY_TARGET_CHOICES = ["fsdp"]
+ 

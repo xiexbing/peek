@@ -1,0 +1,228 @@
+diff --git a/vllm/config/cache.py b/vllm/config/cache.py
+index 9b96c64..13a5424 100644
+--- a/vllm/config/cache.py
++++ b/vllm/config/cache.py
+@@ -91,6 +91,11 @@ class CacheConfig:
+     `ModelConfig` and that value should be manually duplicated here."""
+     enable_prefix_caching: bool = True
+     """Whether to enable prefix caching."""
++    enable_queue_aware_eviction: bool = False
++    """Whether to enable queue-aware KV cache eviction. When enabled, blocks
++    whose prefix is needed by a request in the waiting queue are protected from
++    eviction until no queued request needs them. Requires
++    `enable_prefix_caching`. Defaults to off (standard LRU eviction)."""
+     prefix_caching_hash_algo: PrefixCachingHashAlgo = "sha256"
+     """Set the hash algorithm for prefix caching:
+ 
+diff --git a/vllm/engine/arg_utils.py b/vllm/engine/arg_utils.py
+index 921f314..d3222d5 100644
+--- a/vllm/engine/arg_utils.py
++++ b/vllm/engine/arg_utils.py
+@@ -508,6 +508,7 @@ class EngineArgs:
+     )
+     block_size: int | None = None
+     enable_prefix_caching: bool | None = None
++    enable_queue_aware_eviction: bool = CacheConfig.enable_queue_aware_eviction
+     prefix_caching_hash_algo: PrefixCachingHashAlgo = (
+         CacheConfig.prefix_caching_hash_algo
+     )
+@@ -1847,6 +1848,7 @@ class EngineArgs:
+             num_gpu_blocks_override=self.num_gpu_blocks_override,
+             sliding_window=sliding_window,
+             enable_prefix_caching=self.enable_prefix_caching,
++            enable_queue_aware_eviction=self.enable_queue_aware_eviction,
+             prefix_caching_hash_algo=self.prefix_caching_hash_algo,
+             calculate_kv_scales=self.calculate_kv_scales,
+             kv_cache_dtype_skip_layers=self.kv_cache_dtype_skip_layers,
+diff --git a/vllm/v1/core/block_pool.py b/vllm/v1/core/block_pool.py
+index 81ac05f..4d42577 100644
+--- a/vllm/v1/core/block_pool.py
++++ b/vllm/v1/core/block_pool.py
+@@ -196,6 +196,14 @@ class BlockPool:
+ 
+         self.metrics_collector = metrics_collector
+ 
++        # Queue-aware eviction. Off by default; the scheduler flips this on
++        # from CacheConfig.enable_queue_aware_eviction after construction, so
++        # the flag does not have to thread through the coordinator factory.
++        self.enable_queue_aware_eviction = False
++        # Blocks incremented since the last refresh, so a refresh only zeroes
++        # what it touched instead of scanning every block in the pool.
++        self._queue_ref_touched: list[KVCacheBlock] = []
++
+     def get_cached_block(
+         self, block_hash: BlockHash, kv_cache_group_ids: list[int]
+     ) -> list[KVCacheBlock] | None:
+@@ -553,7 +561,12 @@ class BlockPool:
+         if num_blocks > self.get_num_free_blocks():
+             raise ValueError(f"Cannot get {num_blocks} free blocks from the pool")
+ 
+-        ret: list[KVCacheBlock] = self.free_block_queue.popleft_n(num_blocks)
++        if self.enable_queue_aware_eviction:
++            ret: list[KVCacheBlock] = self.free_block_queue.popleft_queue_aware(
++                num_blocks
++            )
++        else:
++            ret: list[KVCacheBlock] = self.free_block_queue.popleft_n(num_blocks)
+ 
+         # In order to only iterate the list once, we duplicated code a bit
+         if self.enable_caching:
+@@ -689,6 +702,27 @@ class BlockPool:
+ 
+         return True
+ 
++    def reset_queue_ref_counts(self) -> None:
++        """Zero ``queue_ref_count`` on every block touched since the last reset.
++
++        Called at the start of each scheduling step before re-counting from
++        the current waiting queue. No-op unless queue-aware eviction is on.
++        """
++        for block in self._queue_ref_touched:
++            block.queue_ref_count = 0
++        self._queue_ref_touched = []
++
++    def inc_queue_ref_count(self, blocks: list[KVCacheBlock]) -> None:
++        """Mark ``blocks`` as needed by a waiting request.
++
++        Increments ``queue_ref_count`` on each non-null block so
++        :meth:`FreeKVCacheBlockQueue.popleft_queue_aware` protects it.
++        """
++        for block in blocks:
++            if not block.is_null:
++                block.queue_ref_count += 1
++                self._queue_ref_touched.append(block)
++
+     def get_num_free_blocks(self) -> int:
+         """Get the number of free blocks in the pool.
+ 
+diff --git a/vllm/v1/core/kv_cache_utils.py b/vllm/v1/core/kv_cache_utils.py
+index b13c23d..c6f37a5 100644
+--- a/vllm/v1/core/kv_cache_utils.py
++++ b/vllm/v1/core/kv_cache_utils.py
+@@ -137,6 +137,11 @@ class KVCacheBlock:
+     # Whether the block is a null block that should never be cached.
+     is_null: bool = False
+ 
++    # Queue-aware eviction: number of waiting-queue requests whose prefix
++    # includes this block. Refreshed every scheduling step; ignored unless
++    # queue-aware eviction is enabled on the BlockPool.
++    queue_ref_count: int = 0
++
+     @property
+     def block_hash(self) -> BlockHashWithGroupId | None:
+         return self._block_hash
+@@ -387,6 +392,45 @@ class FreeKVCacheBlockQueue:
+ 
+         self.num_free_blocks += len(blocks)
+ 
++    def popleft_queue_aware(self, n: int) -> list[KVCacheBlock]:
++        """Pop ``n`` free blocks, preferring blocks no waiting request needs.
++
++        Two-tier victim selection:
++          Tier 0 (unprotected): ``queue_ref_count == 0`` -- taken first, in
++              LRU (free-list head-to-tail) order.
++          Tier 1 (protected):   ``queue_ref_count > 0`` -- only spilled into
++              when fewer than ``n`` unprotected blocks exist, cheapest first
++              (lowest ``queue_ref_count``).
++
++        Falls back to the fast :meth:`popleft_n` path when nothing is
++        protected, so the common case pays only one extra list walk.
++        """
++        if n == 0:
++            return []
++        assert self.num_free_blocks >= n
++
++        unprotected: list[KVCacheBlock] = []
++        protected: list[KVCacheBlock] = []
++        curr = self.fake_free_list_head.next_free_block
++        while curr is not None and curr is not self.fake_free_list_tail:
++            if curr.queue_ref_count == 0:
++                unprotected.append(curr)
++            else:
++                protected.append(curr)
++            curr = curr.next_free_block
++
++        if not protected:
++            return self.popleft_n(n)
++
++        victims = unprotected[:n]
++        if len(victims) < n:
++            protected.sort(key=lambda b: b.queue_ref_count)
++            victims.extend(protected[: n - len(victims)])
++
++        for block in victims:
++            self.remove(block)
++        return victims
++
+     def get_all_free_blocks(self) -> list[KVCacheBlock]:
+         """Get all free blocks in the free list. Mainly used for testing.
+ 
+diff --git a/vllm/v1/core/sched/scheduler.py b/vllm/v1/core/sched/scheduler.py
+index 90d93a1..77b7abc 100644
+--- a/vllm/v1/core/sched/scheduler.py
++++ b/vllm/v1/core/sched/scheduler.py
+@@ -271,6 +271,12 @@ class Scheduler(SchedulerInterface):
+         if self.connector is not None:
+             self.connector.bind_gpu_block_pool(self.kv_cache_manager.block_pool)
+ 
++        # Queue-aware eviction: enable it on the block pool from config, so the
++        # flag does not have to thread through the KV-cache coordinator factory.
++        self.kv_cache_manager.block_pool.enable_queue_aware_eviction = (
++            self.cache_config.enable_queue_aware_eviction
++        )
++
+         self.use_pp = self.parallel_config.pipeline_parallel_size > 1
+         self.use_v2_model_runner = vllm_config.use_v2_model_runner
+         # Scheduler iteration counter. Drives the V2+PP+async decode-throttle
+@@ -385,6 +391,39 @@ class Scheduler(SchedulerInterface):
+                 num_new_tokens = num_new_tokens // block_size * block_size
+         return num_new_tokens
+ 
++    def _update_queue_refs(self) -> None:
++        """Protect blocks that queued requests will reuse from eviction.
++
++        No-op unless queue-aware eviction is enabled. For every request in the
++        waiting queue, walk its block hashes, look up the matching cached
++        blocks, and mark them (increment ``queue_ref_count``) so
++        ``BlockPool.get_new_blocks`` evicts unneeded blocks first. Counts are
++        rebuilt from scratch every step, so protection tracks the live queue
++        with no leakage across steps.
++        """
++        block_pool = self.kv_cache_manager.block_pool
++        if not block_pool.enable_queue_aware_eviction:
++            return
++        if not self.kv_cache_manager.enable_caching or not self.waiting:
++            return
++
++        group_ids = list(
++            range(len(self.kv_cache_manager.coordinator.kv_cache_config.kv_cache_groups))
++        )
++
++        block_pool.reset_queue_ref_counts()
++        for request in self.waiting:
++            block_hashes = getattr(request, "block_hashes", None)
++            if not block_hashes:
++                continue
++            for block_hash in block_hashes:
++                blocks = block_pool.get_cached_block(block_hash, group_ids)
++                if blocks:
++                    block_pool.inc_queue_ref_count(blocks)
++                else:
++                    # Prefix is contiguous; stop at the first uncached block.
++                    break
++
+     def schedule(self, throttle_prefills: bool = False) -> SchedulerOutput:
+         self.current_step += 1
+         # NOTE(woosuk) on the scheduling algorithm:
+@@ -421,6 +460,11 @@ class Scheduler(SchedulerInterface):
+ 
+         self.kv_cache_manager.new_step_starts()
+ 
++        # Queue-aware eviction: refresh per-block reference counts from the
++        # current waiting queue before any allocation below may trigger
++        # eviction. No-op unless queue-aware eviction is enabled.
++        self._update_queue_refs()
++
+         # DP prefill balancing: on a throttled (non-cadence-aligned) step, defer
+         # all prefill compute unless saturated.
+         defer_prefills = (
