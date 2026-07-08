@@ -377,7 +377,7 @@ pytest tests/
 ## Citing PEEK
 
 > *PEEK: Predictive Queue-Informed KV Cache Management for LLM Serving.*
-> Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zheng Zhen. 2026.
+> Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zhen Zheng. 2026.
 
 The paper is included in this repository at [`paper/peek.pdf`](paper/peek.pdf).
 A BibTeX entry will be added once the paper is posted to a public archive.

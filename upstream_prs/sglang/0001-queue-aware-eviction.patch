@@ -46,10 +46,10 @@ index 1b34f0f..da4d8bc 100644
          if self.policy == CacheAwarePolicy.LPM and len(waiting_queue) > 128:
              # Turn off the expensive prefix matching and sorting when the #queue is large.
 diff --git a/python/sglang/srt/mem_cache/evict_policy.py b/python/sglang/srt/mem_cache/evict_policy.py
-index dad1625..7077965 100644
+index dad1625..0576118 100644
 --- a/python/sglang/srt/mem_cache/evict_policy.py
 +++ b/python/sglang/srt/mem_cache/evict_policy.py
-@@ -63,3 +63,29 @@ class SLRUStrategy(EvictionStrategy):
+@@ -63,3 +63,34 @@ class SLRUStrategy(EvictionStrategy):
  
          is_protected = 1 if node.hit_count >= self.protected_threshold else 0
          return (is_protected, node.last_access_time)
@@ -72,6 +72,11 @@ index dad1625..7077965 100644
 +        segment evict the cheapest-to-recompute first: smaller
 +        ``queue_ref_count * num_tokens`` (few dependents, short prefix), then
 +        LRU as a final tiebreaker.
++
++    Reference:
++        Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zhen Zheng. "PEEK: Predictive
++        Queue-Informed KV Cache Management for LLM Serving," 2026.
++        https://github.com/xiexbing/peek
 +    """
 +
 +    def get_priority(self, node: TreeNode) -> Tuple[int, float, float]:

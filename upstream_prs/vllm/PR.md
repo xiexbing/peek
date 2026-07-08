@@ -1,6 +1,6 @@
 # [Core] Queue-aware KV cache eviction
 
-**Author:** Bing Xie (@xiexbing)
+**Authors:** Bing Xie (@xiexbing), Zhipeng Wang, Masahiro Tanaka, Zhen Zheng
 **Target:** `vllm-project/vllm` @ v0.24.0 (rebase onto `main` before opening)
 
 ## Summary
@@ -17,7 +17,8 @@ pressure with prefix-sharing arrivals (shared system prompts, multi-turn
 sessions, agentic tool-chains), LRU can evict a prefix moments before a batch of
 queued requests that share it is scheduled, forcing redundant prefill. The
 waiting queue already knows which prefixes are about to be reused; this uses
-that signal to bias eviction.
+that signal to bias eviction. The design and its evaluation are described in
+the PEEK paper (see References).
 
 ## Design
 
@@ -35,7 +36,7 @@ tiers (lower = evicted first):
 When nothing is protected it falls back to the fast `popleft_n` path, so the
 overhead on non-sharing workloads is one list walk.
 
-## Changes (5 files, +130 / -1)
+## Changes (5 files, +139 / -1)
 
 | File | Change |
 |---|---|
@@ -89,3 +90,9 @@ vllm serve Qwen/Qwen2.5-14B-Instruct \
   keep this PR small and independently reviewable.
 - Multi-group (hybrid) caches are handled: ref counting uses all
   `kv_cache_groups`.
+
+## References
+
+- Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zhen Zheng. "PEEK: Predictive
+  Queue-Informed KV Cache Management for LLM Serving," 2026.
+  https://github.com/xiexbing/peek

@@ -5,7 +5,7 @@ This product includes software developed by Bing Xie.
 
 The PEEK research paper ("PEEK: Predictive Queue-Informed KV Cache Management
 for LLM Serving") is co-authored with Zhipeng Wang, Masahiro Tanaka, and
-Zheng Zhen. See AUTHORS for the full author list and paper/peek.pdf for the
+Zhen Zheng. See AUTHORS for the full author list and paper/peek.pdf for the
 paper itself.
 
 Licensed under the Apache License, Version 2.0 (the "License");

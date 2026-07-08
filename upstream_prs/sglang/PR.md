@@ -1,6 +1,6 @@
 # [Feature] Queue-aware radix cache eviction policy
 
-**Author:** Bing Xie (@xiexbing)
+**Authors:** Bing Xie (@xiexbing), Zhipeng Wang, Masahiro Tanaka, Zhen Zheng
 **Target:** `sgl-project/sglang` @ v0.5.14 (rebase onto `main` before opening)
 
 ## Summary
@@ -18,7 +18,8 @@ SGLang's eviction policies (LRU/LFU/SLRU/priority) score blocks only by their
 arrivals (agentic tool-chains, shared system prompts, multi-turn sessions),
 LRU can evict a prefix moments before a batch of queued requests that share it
 is scheduled, forcing redundant prefill. The waiting queue already tells us
-which prefixes are about to be reused; this policy uses that signal.
+which prefixes are about to be reused; this policy uses that signal. The design
+and its evaluation are described in the PEEK paper (see References).
 
 ## Design
 
@@ -37,7 +38,7 @@ Counting walks root→matched-node, so every block on a needed prefix is
 protected. Rebuilding each step means protection tracks the live queue exactly,
 with no cross-step leakage.
 
-## Changes (5 files, +94 / -1)
+## Changes (5 files, +99 / -1)
 
 | File | Change |
 |---|---|
@@ -89,3 +90,9 @@ python -m sglang.launch_server \
 - Follow-up optimization: when paired with a schedule policy that skips prefix
   matching, `_update_queue_refs` matches on demand; this could be elided by
   reusing the load snapshot.
+
+## References
+
+- Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zhen Zheng. "PEEK: Predictive
+  Queue-Informed KV Cache Management for LLM Serving," 2026.
+  https://github.com/xiexbing/peek

@@ -96,7 +96,7 @@ index 81ac05f..4d42577 100644
          """Get the number of free blocks in the pool.
  
 diff --git a/vllm/v1/core/kv_cache_utils.py b/vllm/v1/core/kv_cache_utils.py
-index b13c23d..c6f37a5 100644
+index b13c23d..60bc978 100644
 --- a/vllm/v1/core/kv_cache_utils.py
 +++ b/vllm/v1/core/kv_cache_utils.py
 @@ -137,6 +137,11 @@ class KVCacheBlock:
@@ -111,7 +111,7 @@ index b13c23d..c6f37a5 100644
      @property
      def block_hash(self) -> BlockHashWithGroupId | None:
          return self._block_hash
-@@ -387,6 +392,45 @@ class FreeKVCacheBlockQueue:
+@@ -387,6 +392,50 @@ class FreeKVCacheBlockQueue:
  
          self.num_free_blocks += len(blocks)
  
@@ -127,6 +127,11 @@ index b13c23d..c6f37a5 100644
 +
 +        Falls back to the fast :meth:`popleft_n` path when nothing is
 +        protected, so the common case pays only one extra list walk.
++
++        Reference:
++            Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zhen Zheng. "PEEK:
++            Predictive Queue-Informed KV Cache Management for LLM Serving,"
++            2026. https://github.com/xiexbing/peek
 +        """
 +        if n == 0:
 +            return []
@@ -158,7 +163,7 @@ index b13c23d..c6f37a5 100644
          """Get all free blocks in the free list. Mainly used for testing.
  
 diff --git a/vllm/v1/core/sched/scheduler.py b/vllm/v1/core/sched/scheduler.py
-index 90d93a1..77b7abc 100644
+index 90d93a1..543e0d3 100644
 --- a/vllm/v1/core/sched/scheduler.py
 +++ b/vllm/v1/core/sched/scheduler.py
 @@ -271,6 +271,12 @@ class Scheduler(SchedulerInterface):
@@ -174,7 +179,7 @@ index 90d93a1..77b7abc 100644
          self.use_pp = self.parallel_config.pipeline_parallel_size > 1
          self.use_v2_model_runner = vllm_config.use_v2_model_runner
          # Scheduler iteration counter. Drives the V2+PP+async decode-throttle
-@@ -385,6 +391,39 @@ class Scheduler(SchedulerInterface):
+@@ -385,6 +391,43 @@ class Scheduler(SchedulerInterface):
                  num_new_tokens = num_new_tokens // block_size * block_size
          return num_new_tokens
  
@@ -191,14 +196,18 @@ index 90d93a1..77b7abc 100644
 +        block_pool = self.kv_cache_manager.block_pool
 +        if not block_pool.enable_queue_aware_eviction:
 +            return
-+        if not self.kv_cache_manager.enable_caching or not self.waiting:
++        if not self.kv_cache_manager.enable_caching:
++            return
++
++        # Clear last step's counts first, so protection never leaks across
++        # steps even when the waiting queue is momentarily empty.
++        block_pool.reset_queue_ref_counts()
++        if not self.waiting:
 +            return
 +
 +        group_ids = list(
 +            range(len(self.kv_cache_manager.coordinator.kv_cache_config.kv_cache_groups))
 +        )
-+
-+        block_pool.reset_queue_ref_counts()
 +        for request in self.waiting:
 +            block_hashes = getattr(request, "block_hashes", None)
 +            if not block_hashes:
@@ -214,7 +223,7 @@ index 90d93a1..77b7abc 100644
      def schedule(self, throttle_prefills: bool = False) -> SchedulerOutput:
          self.current_step += 1
          # NOTE(woosuk) on the scheduling algorithm:
-@@ -421,6 +460,11 @@ class Scheduler(SchedulerInterface):
+@@ -421,6 +464,11 @@ class Scheduler(SchedulerInterface):
  
          self.kv_cache_manager.new_step_starts()
  
