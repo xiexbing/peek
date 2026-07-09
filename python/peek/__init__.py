@@ -42,10 +42,12 @@ except ImportError:  # pragma: no cover -- pure-Python (offline-only) install.
     _CORE_AVAILABLE = False
 
 from peek.online.eviction import PeekDemandStrategy
+from peek.schedule import clpm_order
 
 __all__ = [
     "PendingTree",
     "PeekDemandStrategy",
+    "clpm_order",
     "online",
     "offline",
 ]
