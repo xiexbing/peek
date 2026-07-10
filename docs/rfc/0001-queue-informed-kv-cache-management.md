@@ -229,11 +229,24 @@ reworked after the fact.
   per-step reconcile is a set diff over the waiting queue. Eviction adds one free
   -list walk only when something is demanded. cLPM's cluster reads are amortized
   over the queue.
-- **Evaluation.** Design and offline evaluation are in the PEEK paper. Engine
-  end-to-end numbers on shared-prefix workloads (cache-hit rate, TTFT, TTLT,
-  throughput vs `lpm`/`fcfs` + LRU baselines):
+- **Evaluation.** Full design and evaluation are in the PEEK paper (§4): five
+  workloads (shared-prompt chat, long-document RAG, multi-GPU 70B, agentic
+  Mooncake, singleton chat), up to 4×H100 (DP=2 over TP=2). Over each engine's
+  **strongest stock baseline** (SGLang `lpm`+LRU / vLLM `fcfs`+APC+LRU), PEEK
+  delivers up to:
 
-  > **[BENCHMARKS TBD — GPU results to be inserted before posting]**
+  | Metric (up to) | SGLang | vLLM |
+  |---|---|---|
+  | Cache-hit rate | **3.0×** | **2.6×** |
+  | TTFT | **7.9×** | **7.1×** |
+  | End-to-end latency | **6.7×** | **5.5×** |
+  | Throughput | **3.6×** | **4.5×** |
+
+  …while **matching baselines within noise** on workloads with no exploitable
+  prefix structure, and wins hold as KV-cache pressure and parallelism scale.
+  These numbers are from PEEK's reference implementation (paper §4); the
+  mechanisms in this RFC are its productized, in-tree form. Per-branch engine
+  numbers will accompany the PRs.
 
 ---
 

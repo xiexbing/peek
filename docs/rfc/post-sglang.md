@@ -69,8 +69,10 @@ https://github.com/xiexbing/peek/blob/main/docs/rfc/0001-queue-informed-kv-cache
 **Reference implementation:** working, DCO-signed branches with CPU-only tests in
 `test/registered/` (peek-lpm → peek-clpm → peek-eviction); happy to share.
 
-Benchmarks (cache-hit rate / TTFT / throughput vs `lpm`+`lru` on shared-prefix
-workloads): **[to insert]**.
+Benchmarks (PEEK paper §4, up to 4×H100, over `lpm`+LRU on shared-prefix
+workloads): up to **3.0× cache-hit, 7.9× TTFT, 6.7× end-to-end latency, 3.6×
+throughput**; within noise on workloads with no exploitable prefix structure.
+These are from PEEK's reference implementation; per-branch numbers to follow.
 
 ## Notes
 
