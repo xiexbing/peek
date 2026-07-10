@@ -75,7 +75,12 @@ gates how we build the PRs.
 
 ## CC List
 
-<!-- maintainers of v1 scheduling / prefix caching -->
+`/vllm/v1/core` CODEOWNERS: @WoosukKwon @robertgshaw2-redhat @njhill @ywang96
+@alexm-redhat @heheda12345 @ApostaC @orozery @ivanium
+
+Most relevant to this proposal (v1 scheduling + prefix caching / KV-cache core):
+@WoosukKwon, @njhill (scheduler), @heheda12345 and @ApostaC (KV cache / prefix
+caching).
 
 ## Any Other Things
 

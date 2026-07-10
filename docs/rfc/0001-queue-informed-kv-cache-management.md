@@ -244,6 +244,23 @@ reworked after the fact.
 
   …while **matching baselines within noise** on workloads with no exploitable
   prefix structure, and wins hold as KV-cache pressure and parallelism scale.
+
+  Per-workload, full PEEK (cLPM+GM+DL+PE) vs each engine's strongest baseline
+  (ranges span load levels / cells; SGLang / vLLM):
+
+  | Workload | Sharing | Cache hit | TTFT | E2E | Throughput |
+  |---|---|---|---|---|---|
+  | W1 shared-prompt chat | high | +28–61pp / +20–49pp | 3.7–7.9× / 1.9–4.4× | 2.9–6.7× / 1.2–3.6× | 1.5–3.6× / 1.2–2.5× |
+  | W2 long-document RAG | high | 1.27–1.39× / 1.12–1.36× | 2.2–2.6× / 3.4–3.7× | 2.0–2.4× / 1.6–2.3× | ~1.0–1.14× |
+  | W3 70B multi-GPU (DP=1) | high | +40–59pp | 3.0–6.7× | 2.6–5.5× | 2.1–4.5× |
+  | W4 prefix-coherent | already warm | no-regress (±1–2pp) | ±5–7% | within 2.5% | within ~2% |
+  | W5 singleton chat | none | no-regress | within ~2% | within ~2% | within ~2% |
+
+  W4/W5 establish the **no-regress** claim: where there is no exploitable
+  structure, a `has_sharing` guard short-circuits PEEK to the stock path. The
+  dominant lever is cluster-aware admission (cLPM); eviction (PE) adds 0–3% on
+  top and never *creates* locality the scheduler didn't establish.
+
   These numbers are from PEEK's reference implementation (paper §4); the
   mechanisms in this RFC are its productized, in-tree form. Per-branch engine
   numbers will accompany the PRs.
