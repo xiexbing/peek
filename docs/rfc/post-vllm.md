@@ -35,11 +35,13 @@ Three opt-in, default-unchanged mechanisms, staged as separate PRs:
    longest cached-prefix length each step, backed by an incrementally-maintained
    pending radix tree (built once, updated on arrival/schedule) instead of a
    per-step recompute. Establishes the tree lifecycle.
-2. **`--scheduling-policy peek-clpm`** — cluster-LPM: split requests into
-   warm / cold-pioneer / cold-sibling sections and interleave a
-   cache/cluster-preferring lane with an oldest-first fairness lane (stride
-   scheduler), so shared prefixes warm once and dense clusters admit first
-   without starving small ones.
+2. **`--scheduling-policy peek`** — the full PEEK cluster scheduler
+   (cluster-LPM + group-major batching + dynamic-lane fairness): split requests
+   into warm / cold-pioneer / cold-sibling sections, emit each cluster
+   contiguously, and stride-interleave a cache/cluster-preferring order with an
+   oldest-first fairness lane whose share adapts per step. Shared prefixes warm
+   once, dense clusters admit first, small/singleton requests aren't starved.
+   PEEK's default, most-performant scheduling policy.
 3. **`--enable-peek-eviction`** — each `KVCacheBlock` gets a `peek_demand`
    refreshed each step from the waiting queue's block hashes;
    `FreeKVCacheBlockQueue` evicts undemanded blocks first, spilling to
@@ -61,7 +63,7 @@ the RFC doc below.
 https://github.com/xiexbing/peek/blob/main/docs/rfc/0001-queue-informed-kv-cache-management.md
 
 **Reference implementation:** working, DCO-signed branches for both engines with
-CPU unit tests (peek-lpm → peek-clpm → peek-eviction); happy to share for review.
+CPU unit tests (peek-lpm → peek → peek-eviction); happy to share for review.
 
 Benchmarks (PEEK paper §4, up to 4×H100, over `fcfs`+APC+LRU on shared-prefix
 workloads): up to **2.6× cache-hit, 7.1× TTFT, 5.5× end-to-end latency, 4.5×

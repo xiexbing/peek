@@ -6,33 +6,40 @@
 sections below.
 **Reference:** Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zhen Zheng. *"PEEK:
 Predictive Queue-Informed KV Cache Management for LLM Serving,"* 2026.
-https://github.com/xiexbing/peek
+https://arxiv.org/abs/2607.02525 
 
 ---
 
 ## 1. Summary
 
-Under memory pressure with bursty, prefix-sharing arrivals (shared system
-prompts, multi-turn sessions, agentic tool-chains), today's schedulers and
-evictors leave reuse on the table:
+SGLang and vLLM already exploit KV-cache reuse — SGLang's LPM scheduling over
+RadixAttention, vLLM's automatic prefix caching (APC). But they exploit it
+**reactively**, from *past* and *current* cache state; neither uses the
+**predictive** signal in the waiting queue — the token-prefix **relationships
+among the pending (upcoming) requests themselves** — for scheduling or for
+eviction. Under memory pressure with bursty, prefix-sharing arrivals (shared
+system prompts, multi-turn sessions, agentic tool-chains), that blind spot
+costs reuse:
 
-- **Eviction is past-only.** LRU (and LFU/SLRU) score blocks by history. It can
-  evict a prefix moments before a batch of queued requests that share it is
-  scheduled, forcing redundant prefill.
+- **Eviction ignores upcoming demand.** LRU (and LFU/SLRU) score blocks only by
+  *past* access, with no view of the pending requests about to arrive at the
+  batch. So LRU can evict a prefix moments before a burst of queued requests
+  that share it is scheduled, forcing redundant prefill.
 - **Scheduling ignores the queue's sharing structure.** Longest-prefix-match
   (LPM) orders by *existing* cache hit and breaks ties by arrival; it has no
   cheap way to see that N queued requests share a not-yet-cached prefix and
   should be warmed once, pioneer-first.
 
-Both gaps have the same root cause: **the waiting queue already tells us which
-prefixes are about to be (re)used, and neither subsystem consumes that signal.**
+Both gaps share one root cause: **the waiting queue already tells us which
+prefixes the pending requests are about to (re)use, and neither the scheduler
+nor the KV-cache evictor — in SGLang or vLLM — consumes that signal.**
 
 This RFC proposes a small, opt-in, default-unchanged set of mechanisms that do:
 
 1. an **incrementally-maintained pending radix tree** over the waiting queue's
    token sequences (the shared primitive),
-2. **cache-aware scheduling** — `peek-lpm` (LPM, tree-backed) and `peek-clpm`
-   (cluster-LPM), and
+2. **cache-aware scheduling** — `peek-lpm` (LPM, tree-backed) and `peek`, the
+   full PEEK cluster scheduler (cluster-LPM + group-major + dynamic-lane), and
 3. **demand-aware eviction** — protect blocks a queued request will reuse.
 
 We have a working reference implementation for both engines (links in §9) and
@@ -91,10 +98,12 @@ strictly opt-in (default behavior is byte-for-byte unchanged):
 | Stage | Name | Surface | Behavior |
 |---|---|---|---|
 | 1 | **peek-lpm** | new schedule policy | LPM ordering, but over an incrementally-maintained pending radix tree instead of a per-call aux-tree rebuild. Establishes the tree lifecycle. |
-| 2 | **peek-clpm** | new schedule policy | Cluster-LPM: warm/pioneer/sibling sections + a cache-cluster lane interleaved with an oldest-first fairness lane (paper §3.2). |
+| 2 | **peek** | new schedule policy | The full PEEK cluster scheduler (paper §3.2): cluster-LPM sort + **group-major** cluster batching + **dynamic-lane** fairness. PEEK's default, most-performant scheduling policy. |
 | 3 | **peek eviction** | new eviction policy / flag | Protect blocks a queued request will reuse; evict undemanded blocks first. |
 
-We propose landing them in that order (1 → 2 → 3).
+We propose landing them in that order (1 → 2 → 3). The recommended production
+config is `peek` scheduling **+** peek eviction (the paper's `clpm_gm_dl_pe`,
+"full PEEK").
 
 ---
 
@@ -129,22 +138,32 @@ with the same in-batch deduplication — but the pending tree is maintained
 incrementally rather than rebuilt each call, and it is the substrate cLPM builds
 on. Intended as a low-risk, behavior-preserving foundation.
 
-### 5.3 peek-clpm (stage 2)
+### 5.3 peek (stage 2) — the full PEEK cluster scheduler
 
-Refines LPM with signals LPM cannot cheaply produce, read off the tree:
+`--schedule-policy peek` is PEEK's default, most-performant scheduling policy.
+It refines LPM with three signals LPM cannot cheaply produce, all read off the
+pending tree — **cLPM + GM + DL** in the paper's notation (§3.2):
 
-- **Sections** per request: `0 = warm` (already cached beyond a threshold),
-  `1 = cold pioneer` (first-seen of a shared cold prefix), `2 = cold sibling`
-  (a later request sharing a pioneer's claim key). Siblings sort behind their
-  pioneer so the prefix is warmed once.
-- **Lane A** (cache/cluster-preferring), key
-  `(section, −main_hit, −req_score, −cluster_size, arrival)`.
-- **Lane B** (fairness), key `(section, arrival, −main_hit)`.
-- The two lanes are **stride-interleaved** by a share parameter
-  (`big_lane_share`, default 0.7) so dense clusters admit first without starving
-  small/singleton requests.
+- **cLPM — cluster-LPM sort.** Each request gets a **section**: `0 = warm`
+  (already cached beyond a threshold), `1 = cold pioneer` (first-seen of a
+  shared cold prefix), `2 = cold sibling` (a later request sharing a pioneer's
+  claim key). Siblings sort behind their pioneer so the shared prefix is warmed
+  once. Within a section, requests are keyed by
+  `(−main_hit, −req_score, −cluster_size, arrival)` — cache-warm and
+  dense-cluster requests first.
+- **GM — group-major batching.** Within a section, members of the same cluster
+  are emitted **contiguously** (clusters ranked by depth × size), so an entire
+  cluster admits as one batch and its shared prefix is reused across the batch
+  instead of being interleaved with unrelated work.
+- **DL — dynamic-lane fairness.** The cLPM+GM order is stride-interleaved with an
+  oldest-first fairness lane whose share is **recomputed each step** from the
+  queue's singleton fraction and oldest-singleton wait (EMA-smoothed). This
+  recovers the singleton starvation that aggressive cluster batching would
+  otherwise cause. (A static lane share, `big_lane_share`, is available as a
+  simpler fallback.)
 
-Degenerates to LPM ordering when the queue has no sharing structure.
+Degenerates to LPM ordering when the queue has no sharing structure (guarded by
+`has_sharing`).
 
 ### 5.4 Demand-aware eviction (stage 3)
 
@@ -162,9 +181,9 @@ walk. Rebuilt from scratch each step → no leakage.
 ### 6.1 SGLang
 
 - **Scheduling.** Add `CacheAwarePolicy.PEEK_LPM` / `PEEK_CLPM`
-  (`--schedule-policy peek-lpm|peek-clpm`). `SchedulePolicy.calc_priority`
+  (`--schedule-policy peek-lpm|peek`). `SchedulePolicy.calc_priority`
   gains a branch that syncs the pending tree (diff-based) and reorders the
-  waiting queue. peek-lpm reuses `_sort_by_longest_prefix`; peek-clpm calls the
+  waiting queue. peek-lpm reuses `_sort_by_longest_prefix`; peek calls the
   cLPM ordering.
 - **Eviction.** Add `--radix-eviction-policy peek`. A `PeekDemandStrategy` reads
   per-node demand from the pending tree (max token-weighted `pending_demand`
@@ -178,7 +197,7 @@ walk. Rebuilt from scratch each step → no leakage.
 ### 6.2 vLLM (v1)
 
 - **Scheduling.** Add `SchedulingPolicy.PEEK_LPM` / `PEEK_CLPM`
-  (`--scheduling-policy peek-lpm|peek-clpm`), backed by the FCFS queue, reordered
+  (`--scheduling-policy peek-lpm|peek`), backed by the FCFS queue, reordered
   in `Scheduler.schedule()` before allocation. Cache-hit length per request uses
   the coordinator's `find_longest_cache_hit` (the lookup `get_computed_blocks`
   already performs, minus its stats side effect).
@@ -269,7 +288,7 @@ reworked after the fact.
 
 ## 9. Reference implementation
 
-Working, DCO-signed branches (staged peek-lpm → peek-clpm → peek-eviction), CPU
+Working, DCO-signed branches (staged peek-lpm → peek → peek-eviction), CPU
 unit tests included:
 
 - SGLang: *[link once public]*
@@ -299,7 +318,7 @@ publish once this RFC has a direction.)*
 ## 11. Rollout plan
 
 1. Land **peek-lpm** (behavior-preserving foundation + tree lifecycle).
-2. Land **peek-clpm** (the scheduling win; needs benchmarks).
+2. Land **peek** (the scheduling win; needs benchmarks).
 3. Land **peek eviction** (SGLang: pairs with a peek scheduler; vLLM:
    standalone).
 

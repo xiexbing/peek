@@ -40,11 +40,13 @@ Three opt-in mechanisms, staged as separate PRs:
    dedup), but over an **incrementally-maintained pending radix tree** instead of
    the per-call aux-tree rebuild. Behavior-preserving foundation that establishes
    the tree lifecycle (diff-synced against `waiting_queue` in `calc_priority`).
-2. **`--schedule-policy peek-clpm`** — cluster-LPM: warm / cold-pioneer /
-   cold-sibling sections + a cache/cluster-preferring lane interleaved with an
-   oldest-first fairness lane, so shared prefixes warm once and dense clusters
-   admit first without starving small ones. Degenerates to LPM on no-sharing
-   queues.
+2. **`--schedule-policy peek`** — the full PEEK cluster scheduler
+   (cluster-LPM + group-major batching + dynamic-lane fairness): warm /
+   cold-pioneer / cold-sibling sections, each cluster emitted contiguously, and
+   a cache/cluster-preferring order stride-interleaved with an oldest-first
+   fairness lane whose share adapts per step. Shared prefixes warm once, dense
+   clusters admit first, small/singleton requests aren't starved. Degenerates to
+   LPM on no-sharing queues. PEEK's default, most-performant scheduling policy.
 3. **`--radix-eviction-policy peek`** — a `PeekDemandStrategy` protects nodes
    whose prefix queued requests will reuse (token-weighted `pending_demand` over
    the node's ancestors), evicting undemanded nodes first, LRU within a tier. It
@@ -67,7 +69,7 @@ built. Tradeoffs are in the full RFC.
 https://github.com/xiexbing/peek/blob/main/docs/rfc/0001-queue-informed-kv-cache-management.md
 
 **Reference implementation:** working, DCO-signed branches with CPU-only tests in
-`test/registered/` (peek-lpm → peek-clpm → peek-eviction); happy to share.
+`test/registered/` (peek-lpm → peek → peek-eviction); happy to share.
 
 Benchmarks (PEEK paper §4, up to 4×H100, over `lpm`+LRU on shared-prefix
 workloads): up to **3.0× cache-hit, 7.9× TTFT, 6.7× end-to-end latency, 3.6×
