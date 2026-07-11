@@ -330,4 +330,4 @@ Each stage is a separate PR. Happy to gate stage 2/3 behind further discussion.
 
 - Bing Xie, Zhipeng Wang, Masahiro Tanaka, Zhen Zheng. *"PEEK: Predictive
   Queue-Informed KV Cache Management for LLM Serving,"* 2026.
-  https://github.com/xiexbing/peek
+  Paper: https://arxiv.org/abs/2607.02525 · Code: https://github.com/xiexbing/peek
