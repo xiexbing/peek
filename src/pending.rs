@@ -19,7 +19,7 @@
 use pyo3::exceptions::{PyKeyError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
@@ -273,6 +273,44 @@ impl PyPendingTree {
             out.insert(rid, self.inner.tree.cluster_info(rid, tokens));
         }
         out
+    }
+
+    /// LPM schedule order for the given waiting requests, using this pending
+    /// tree for the in-batch pioneer/sibling dedup -- replacing stock LPM's
+    /// per-call auxiliary radix tree. `reqs` is `(rid, main_hit)` in arrival
+    /// order; returns the admission order as indices into `reqs`.
+    ///
+    /// Order: descending `main_hit` (cache-warm first). A cold request
+    /// (`main_hit <= check_threshold`) that shares at least
+    /// `deprioritize_threshold` prefix tokens with an earlier-arriving cold
+    /// request is deprioritized to the tail -- the first request of each cluster
+    /// is the pioneer, the rest are siblings. Ties keep arrival order. All
+    /// cluster lookups + dedup + stable sort run in Rust (no per-request
+    /// Python<->Rust crossings).
+    #[pyo3(signature = (reqs, check_threshold = 32, deprioritize_threshold = 32))]
+    fn lpm_order(
+        &self,
+        reqs: Vec<(u64, i64)>,
+        check_threshold: i64,
+        deprioritize_threshold: usize,
+    ) -> Vec<usize> {
+        let mut keys: Vec<(i64, bool)> = Vec::with_capacity(reqs.len());
+        let mut seen_clusters: FxHashSet<NodeId> = FxHashSet::default();
+        for &(rid, main_hit) in &reqs {
+            let mut is_deprioritized = false;
+            if main_hit <= check_threshold {
+                if let Some((cluster_node, depth, _size)) = self.inner.cluster_info(rid) {
+                    // Cluster already claimed by an earlier (pioneer) request?
+                    if depth >= deprioritize_threshold
+                        && !seen_clusters.insert(cluster_node)
+                    {
+                        is_deprioritized = true;
+                    }
+                }
+            }
+            keys.push((main_hit, is_deprioritized));
+        }
+        lpm_sort_order(keys)
     }
 
     /// Return the token sequence currently stored for `rid`, or None if absent.

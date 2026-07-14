@@ -52,6 +52,11 @@ ClpmItem = Tuple[int, int, Optional[Hashable], int]
 
 # Persistent Lane-B share for the dynamic-lane (DL) controller, keyed by tree
 # identity so multiple tree instances don't cross-contaminate.
+#
+# NOTE: peek-lpm has no Python entry point -- it is computed entirely in Rust
+# via ``PendingTree.lpm_order`` (cluster-based in-batch dedup + stable LPM sort).
+# Callers invoke ``tree.lpm_order(reqs, ...)`` directly. Only cluster-LPM
+# (``clpm_order`` below) has Python orchestration on top of the Rust tree.
 _dyn_lane_state: dict = {}
 
 
