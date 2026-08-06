@@ -83,18 +83,6 @@ _SCHEDULER = (
 # scheduler path; Rust primitive `longest_match_along` remains for future
 # experiments. Re-enable via git if/when we build a different mechanism.
 
-# PEEK_ONLINE_KV_BUDGET=1 -- admission control using peek's running-batch visibility.
-# Computes the KV budget the running batch has COMMITTED to exhaust (Σ of
-# per-req prefill_len + remaining_decode) and, when sorting the waiting
-# queue, defers pending rids whose admission would push commitment past
-# max_total_tokens. Prevents mid-decode retractions; most valuable in
-# long-decode regimes where each admission pins KV for thousands of tokens.
-# Deferred rids remain in the queue; they naturally re-qualify next tick
-# when running reqs progress / complete and free commitment budget.
-_KV_BUDGET = _flag("PEEK_ONLINE_KV_BUDGET")
-# Safety margin: don't spend the last X% of the budget. Leaves room for
-# running reqs whose max_new_tokens under-estimates actual decode length.
-_KV_BUDGET_MARGIN = float(os.environ.get("PEEK_ONLINE_KV_BUDGET_MARGIN", "0.05"))
 _PHASE_TRACKING = (
     _flag("PEEK_ONLINE_PHASE_TRACKING") or _EVICTION or _SCHEDULER
 )
@@ -737,61 +725,6 @@ def _install() -> None:
                         mr.last_host_node,
                         mr.host_hit_length,
                     )
-
-            # --- Mechanism A: KV-budget-aware admission control ---
-            # Compute the budget the running batch has committed to exhaust
-            # (each running req's remaining prefill + max_new_tokens decode).
-            # Walk the sorted queue greedily: admit while cumulative commit
-            # stays under budget; defer the rest. Deferred rids stay in
-            # waiting_queue (we move them to the back) and re-qualify next
-            # tick as running reqs progress.
-            if _KV_BUDGET and running_batch is not None:
-                # Helper: remaining decode tokens for one req -- sglang's
-                # worst-case projection, (max_new_tokens - already-decoded).
-                def _remaining_decode(req, already_out: int) -> int:
-                    try:
-                        max_new = int(req.sampling_params.max_new_tokens)
-                    except Exception:
-                        max_new = 0
-                    return max(0, max_new - already_out)
-
-                running_reqs = getattr(running_batch, "reqs", None) or []
-                running_commit = 0
-                for rr in running_reqs:
-                    plen = len(rr.origin_input_ids) + len(rr.output_ids or [])
-                    out_len = len(rr.output_ids or [])
-                    running_commit += plen + _remaining_decode(rr, out_len)
-
-                max_total = getattr(self, "max_total_num_tokens", None)
-                if not max_total:
-                    tc = getattr(self, "tree_cache", None)
-                    max_total = getattr(tc, "max_total_num_tokens", 0) if tc else 0
-                if max_total > 0:
-                    effective_budget = int(max_total * (1.0 - _KV_BUDGET_MARGIN))
-                    remaining_budget = effective_budget - running_commit
-                    if remaining_budget < 0:
-                        remaining_budget = 0
-
-                    admitted: list = []
-                    deferred: list = []
-                    cum_commit = 0
-                    for r in waiting_queue:
-                        pi = r.prefix_indices
-                        main_hit = 0 if pi is None else len(pi)
-                        total_tokens = len(r.origin_input_ids) + len(r.output_ids or [])
-                        prefill_cost = max(0, total_tokens - main_hit)
-                        decode_cost = _remaining_decode(r, len(r.output_ids or []))
-                        commit = prefill_cost + decode_cost
-                        if cum_commit + commit <= remaining_budget or not admitted:
-                            # Always allow at least one admission even if budget
-                            # is tight -- prevents deadlock when every req exceeds
-                            # the budget alone. Subsequent reqs gated normally.
-                            admitted.append(r)
-                            cum_commit += commit
-                        else:
-                            deferred.append(r)
-                    if deferred:
-                        waiting_queue[:] = admitted + deferred
 
             _peek_call_count[0] += 1
             if _PROFILE:

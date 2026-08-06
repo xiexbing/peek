@@ -48,7 +48,9 @@ NUM_ROUNDS="${NUM_ROUNDS:-4}"
 OUTPUT_LEN="${OUTPUT_LEN:-256}"
 INTER_TURN_MEDIAN_MS="${INTER_TURN_MEDIAN_MS:-50}"
 INTER_TURN_SIGMA="${INTER_TURN_SIGMA:-0.5}"
-SHARED_SYSTEM_PROMPT_PATH="${SHARED_SYSTEM_PROMPT_PATH:-$W4_DATA/shared_system_prompt.txt}"
+# NB: `-` (not `:-`) so an explicitly empty SHARED_SYSTEM_PROMPT_PATH="" selects
+# agentic_only (no shared prompt); only an *unset* var falls back to the default.
+SHARED_SYSTEM_PROMPT_PATH="${SHARED_SYSTEM_PROMPT_PATH-$W4_DATA/shared_system_prompt.txt}"
 
 # SLOs -- re-using W1's defaults for consistency
 TTFT_SLO="${TTFT_SLO:-2000}"
