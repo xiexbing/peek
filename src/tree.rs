@@ -48,11 +48,6 @@ pub struct Node {
     pub children: FxHashMap<Token, NodeId>,
     pub pending_count: u32,
     pub terminators: FxHashSet<Rid>,
-    /// # of completions recorded at this node (running sample count).
-    pub decode_samples: u32,
-    /// Exponentially-weighted running mean of actual output-token length for
-    /// reqs whose full token path ended at this node. Zero if no samples.
-    pub decode_ewma: f32,
 }
 
 impl Node {
@@ -63,17 +58,23 @@ impl Node {
             children: FxHashMap::default(),
             pending_count: 0,
             terminators: FxHashSet::default(),
-            decode_samples: 0,
-            decode_ewma: 0.0,
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Tree {
-    pub nodes: Vec<Node>,
+    /// Node arena. Private: freed slots stay here on the freelist, so direct
+    /// indexing would expose garbage. Read through `node()` / `nodes_slice()`.
+    nodes: Vec<Node>,
     /// Freelist of dead slots; reused before pushing.
     free: Vec<NodeId>,
+}
+
+impl Default for Tree {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Tree {
@@ -125,14 +126,10 @@ impl Tree {
         let lower_edge: Vec<Token> = n.edge.split_off(offset);
         let lower_first = lower_edge[0];
 
-        // Move children, terminators, pending_count, decode stats to lower half.
+        // Move children, terminators, pending_count to the lower half.
         let children = std::mem::take(&mut n.children);
         let terminators = std::mem::take(&mut n.terminators);
         let pending_count = n.pending_count;
-        let decode_samples = n.decode_samples;
-        let decode_ewma = n.decode_ewma;
-        n.decode_samples = 0;
-        n.decode_ewma = 0.0;
 
         let lower = self.alloc(lower_edge, node);
         // Reparent grandchildren while we still own `children` locally (no
@@ -145,8 +142,6 @@ impl Tree {
             l.children = children;
             l.terminators = terminators;
             l.pending_count = pending_count;
-            l.decode_samples = decode_samples;
-            l.decode_ewma = decode_ewma;
         }
         self.node_mut(node).children.insert(lower_first, lower);
     }
@@ -156,7 +151,7 @@ impl Tree {
     /// which the descent stopped (equal to edge.len() if we stopped at a
     /// node boundary) and `consumed` is the number of tokens matched total.
     /// Stops at the first mismatch or when tokens are exhausted.
-    pub fn descend(&self, tokens: &[Token]) -> Descent {
+    fn descend(&self, tokens: &[Token]) -> Descent {
         let mut node = ROOT;
         let mut consumed = 0usize;
         loop {
@@ -242,10 +237,15 @@ impl Tree {
         if !self.node_mut(terminator).terminators.remove(&rid) {
             return false;
         }
-        // Decrement pending_count along the path.
+        // Decrement pending_count along the path. `saturating_sub` rather than
+        // `-=`: a broken count invariant should degrade the scheduling signal,
+        // not wrap to u32::MAX and poison every cluster query above this node.
+        // The debug_assert catches it in development.
         let mut cur = terminator;
         while cur != ROOT {
-            self.node_mut(cur).pending_count -= 1;
+            let n = self.node_mut(cur);
+            debug_assert!(n.pending_count > 0, "pending_count underflow at node {}", cur);
+            n.pending_count = n.pending_count.saturating_sub(1);
             cur = self.node(cur).parent;
         }
         // GC: if terminator has no terminators and no children, delete it; then
@@ -257,13 +257,9 @@ impl Tree {
     fn gc(&mut self, mut node: NodeId) {
         while node != ROOT {
             let n = self.node(node);
-            // Keep nodes that hold decode-prediction history even if they
-            // have no live terminators/children -- they carry per-cluster
-            // EWMA used at admission time to estimate decode length.
-            if n.terminators.is_empty()
-                && n.children.is_empty()
-                && n.decode_samples == 0
-            {
+            // Dead leaf -> unlink and free, then continue upward: removing it
+            // may have orphaned the parent too.
+            if n.terminators.is_empty() && n.children.is_empty() {
                 let parent = n.parent;
                 let first = n.edge[0];
                 self.node_mut(parent).children.remove(&first);
@@ -271,10 +267,10 @@ impl Tree {
                 node = parent;
                 continue;
             }
-            // Try merging: node has no terminators and exactly one child -> fuse edges.
-            // Skip merging if either node has decode history (merging would lose the
-            // boundary between two distinct cluster prefixes).
-            if n.terminators.is_empty() && n.children.len() == 1 && node != ROOT && n.decode_samples == 0 {
+            // Try merging: node has no terminators and exactly one child -> fuse
+            // edges, restoring radix compression after the sibling that caused
+            // the branch went away.
+            if n.terminators.is_empty() && n.children.len() == 1 {
                 let child = *n.children.values().next().unwrap();
                 // Merge child's edge into node, then promote child's children/terminators.
                 let child_edge = std::mem::take(&mut self.node_mut(child).edge);
@@ -286,8 +282,11 @@ impl Tree {
                 for &g in child_children.values() {
                     self.node_mut(g).parent = node;
                 }
-                self.node_mut(node).children = child_children;
-                self.node_mut(node).terminators = child_terms;
+                {
+                    let m = self.node_mut(node);
+                    m.children = child_children;
+                    m.terminators = child_terms;
+                }
                 self.free(child);
                 // Continue upward: the merged node may itself now be mergeable.
                 // But it has terminators/children from child, so further merging
@@ -330,112 +329,8 @@ impl Tree {
         }
     }
 
-    /// Record an observed completion: walk `tokens` into the tree (creating/
-    /// splitting edges as needed so a terminal node sits exactly at
-    /// `tokens.len()`), then update that node's EWMA with `output_len`.
-    ///
-    /// The tree must outlive the original pending entry. `remove(rid)` leaves
-    /// nodes with recorded decode data alive (see `gc`) specifically so this
-    /// history can be queried at later admission time.
-    pub fn record_decode(&mut self, tokens: &[Token], output_len: u32) {
-        // Use the same path-materialization logic as `insert` (without
-        // touching pending_count or terminators): walk edges, splitting and
-        // creating as needed until a node sits at depth tokens.len().
-        let mut node = ROOT;
-        let mut consumed = 0usize;
-        while consumed < tokens.len() {
-            let next_tok = tokens[consumed];
-            if let Some(&child) = self.node(node).children.get(&next_tok) {
-                let edge_len = self.node(child).edge.len();
-                let remaining = &tokens[consumed..];
-                let common = match_edge_len(&self.node(child).edge, remaining);
-                if common == edge_len {
-                    consumed += common;
-                    node = child;
-                    continue;
-                }
-                // Tokens diverge from this edge mid-way -> split so a terminal
-                // node sits at the divergence point, then either follow into
-                // the new branch or create a fresh leaf.
-                self.split_edge(child, common);
-                consumed += common;
-                node = child;
-                if consumed == tokens.len() {
-                    break;
-                }
-                // Create a new branch for the remaining tokens.
-                let remainder = tokens[consumed..].to_vec();
-                let first = remainder[0];
-                let leaf = self.alloc(remainder, node);
-                self.node_mut(node).children.insert(first, leaf);
-                node = leaf;
-                break;
-            }
-            // No matching child -> create a fresh leaf for remaining tokens.
-            let remainder = tokens[consumed..].to_vec();
-            let first = remainder[0];
-            let leaf = self.alloc(remainder, node);
-            self.node_mut(node).children.insert(first, leaf);
-            node = leaf;
-            break;
-        }
-        // Update EWMA at the terminal node.
-        const ALPHA: f32 = 0.3;
-        let n = self.node_mut(node);
-        if n.decode_samples == 0 {
-            n.decode_ewma = output_len as f32;
-        } else {
-            n.decode_ewma = ALPHA * (output_len as f32) + (1.0 - ALPHA) * n.decode_ewma;
-        }
-        n.decode_samples = n.decode_samples.saturating_add(1);
-    }
-
-    /// Predict decode length for a new req with token path `tokens`.
-    ///
-    /// Walks `tokens` into the tree and returns the EWMA recorded at the
-    /// deepest node with at least `min_samples` observations. Walks from
-    /// deep -> shallow so the most specific cluster wins; falls back to
-    /// shallower ancestors when deeper nodes haven't seen enough completions.
-    ///
-    /// Returns `Some((ewma, samples))` on hit, `None` if even root has no
-    /// qualifying ancestor. Mid-edge queries inherit the deeper node's stats
-    /// -- any node at or below the query position shares the same path prefix.
-    pub fn predict_decode(&self, tokens: &[Token], min_samples: u32) -> Option<(f32, u32)> {
-        // Walk into the tree, remembering every node whose decode_samples
-        // meets the threshold. The deepest such node is the prediction.
-        let mut node = ROOT;
-        let mut consumed = 0usize;
-        let mut best: Option<(f32, u32)> = None;
-        loop {
-            let n = self.node(node);
-            if n.decode_samples >= min_samples {
-                best = Some((n.decode_ewma, n.decode_samples));
-            }
-            if consumed == tokens.len() {
-                return best;
-            }
-            let next_tok = tokens[consumed];
-            let Some(&child) = n.children.get(&next_tok) else {
-                return best;
-            };
-            let edge = &self.node(child).edge;
-            let common = match_edge_len(edge, &tokens[consumed..]);
-            if common < edge.len() {
-                // Mid-edge: inherits child's stats.
-                if self.node(child).decode_samples >= min_samples {
-                    best = Some((
-                        self.node(child).decode_ewma,
-                        self.node(child).decode_samples,
-                    ));
-                }
-                return best;
-            }
-            consumed += common;
-            node = child;
-        }
-    }
-
-    /// Total node count (for introspection/debugging).
+    /// Live node count -- allocated slots minus freelist entries. Always >= 1
+    /// (ROOT is never freed). For introspection/debugging.
     pub fn len(&self) -> usize {
         self.nodes.len() - self.free.len()
     }
@@ -471,15 +366,23 @@ impl Tree {
 
     /// Number of pending rids whose first edge is unique (no other pending
     /// rid shares even the first token). Complement of `shared_rid_count`.
+    ///
+    /// Includes zero-token rids, which terminate at ROOT and so pass through
+    /// no root child at all. They share zero tokens with anyone -- hence zero
+    /// possible reuse -- so they count as singletons; without this they would
+    /// fall out of both counters and break the identity above.
     pub fn singleton_rid_count(&self) -> u32 {
-        self.node(ROOT)
-            .children
-            .values()
-            .map(|&c| {
-                let pc = self.node(c).pending_count;
-                if pc < 2 { pc } else { 0 }
-            })
-            .sum()
+        let empty_prompts = self.node(ROOT).terminators.len() as u32;
+        empty_prompts
+            + self
+                .node(ROOT)
+                .children
+                .values()
+                .map(|&c| {
+                    let pc = self.node(c).pending_count;
+                    if pc < 2 { pc } else { 0 }
+                })
+                .sum::<u32>()
     }
 
     /// Expose internal nodes for snapshot dumps. Caller must filter via
@@ -603,15 +506,17 @@ impl Tree {
     /// Internal helper: return any terminator rid found in the subtree rooted
     /// at `node` (including `node` itself). Prefers direct terminators, then
     /// descends into children. Returns None if the subtree has no terminators.
+    ///
+    /// Iterative: subtree depth is caller-controlled (it follows token paths),
+    /// so an explicit stack avoids putting that bound on the call stack.
     fn sample_terminator_in_subtree(&self, node: NodeId) -> Option<Rid> {
-        let n = self.node(node);
-        if let Some(&r) = n.terminators.iter().next() {
-            return Some(r);
-        }
-        for &child in n.children.values() {
-            if let Some(r) = self.sample_terminator_in_subtree(child) {
+        let mut stack = vec![node];
+        while let Some(id) = stack.pop() {
+            let n = self.node(id);
+            if let Some(&r) = n.terminators.iter().next() {
                 return Some(r);
             }
+            stack.extend(n.children.values().copied());
         }
         None
     }
@@ -852,6 +757,8 @@ mod tests {
         assert_eq!(n1, n2, "r1 and r2 share finest cluster");
         assert_ne!(n1, n3, "r3 is in a coarser cluster");
         assert_eq!((d1, s1), (4, 2));
+        // Same cluster node -> identical depth/size reported for r2.
+        assert_eq!((d2, s2), (4, 2));
         assert_eq!((d3, s3), (2, 3));
     }
 
@@ -865,6 +772,26 @@ mod tests {
         assert_eq!(n1, n2);
         assert_eq!((d1, s1), (3, 2));
         assert_eq!((d2, s2), (3, 2));
+    }
+
+    #[test]
+    fn sharing_counters_account_for_zero_token_rids() {
+        // Zero-token rids terminate at ROOT and pass through no root child, so
+        // they used to fall out of both counters and break the documented
+        // `shared + singleton == total` identity.
+        let mut t = Tree::new();
+        t.insert(1, &toks(&[]));
+        t.insert(2, &toks(&[]));
+        t.insert(3, &toks(&[10, 20]));
+        t.insert(4, &toks(&[10, 30]));
+        t.insert(5, &toks(&[99]));
+        // Sharing zero tokens yields zero reuse -> empty prompts are singletons.
+        assert_eq!(t.shared_rid_count(), 2); // rids 3, 4
+        assert_eq!(t.singleton_rid_count(), 3); // rids 1, 2, 5
+        assert_eq!(t.shared_rid_count() + t.singleton_rid_count(), 5);
+        // Zero-token rids are removable and restore the tree.
+        assert!(t.remove(1, &toks(&[])));
+        assert_eq!(t.singleton_rid_count(), 2);
     }
 
     #[test]
@@ -1131,5 +1058,35 @@ mod tests {
                 "cluster {}: reported size {} != ground subtree count {} (path {:?})",
                 nid, size0, subtree_count, path_tokens);
         }
+    }
+
+    #[test]
+    fn gc_merge_recompresses_single_child_chain() {
+        // When the sibling that forced a branch goes away, gc must fuse the
+        // now-single-child chain back into one edge -- restoring the radix
+        // compression that "pending_count is uniform along an edge" rests on.
+        let mut t = Tree::new();
+        t.insert(1, &toks(&[1, 2, 3]));
+        t.insert(2, &toks(&[1, 2, 4]));
+        // root -> [1,2] -> {[3], [4]}
+        assert_eq!(t.len(), 4);
+
+        assert!(t.remove(2, &toks(&[1, 2, 4])));
+        // [4] freed, then [1,2] fuses with [3] -> root -> [1,2,3]
+        assert_eq!(t.len(), 2, "single-child chain must recompress");
+        let d = t.descend(&toks(&[1, 2, 3]));
+        assert_eq!(d.consumed, 3);
+        assert_eq!(t.node(d.end_node).edge, toks(&[1, 2, 3]), "edges fused");
+        assert!(t.node(d.end_node).terminators.contains(&1), "terminator promoted");
+        assert_eq!(t.node(d.end_node).pending_count, 1);
+        assert_eq!(t.node(d.end_node).parent, ROOT, "reparented to root");
+
+        // The merged node still answers prefix queries correctly.
+        assert_eq!(t.pending_demand(&toks(&[1, 2])), 1);
+        assert_eq!(t.pending_demand(&toks(&[1, 2, 3])), 1);
+        assert_eq!(t.pending_demand(&toks(&[1, 2, 4])), 0);
+
+        assert!(t.remove(1, &toks(&[1, 2, 3])));
+        assert_eq!(t.len(), 1, "only root remains");
     }
 }

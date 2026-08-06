@@ -95,22 +95,6 @@ _KV_BUDGET = _flag("PEEK_ONLINE_KV_BUDGET")
 # Safety margin: don't spend the last X% of the budget. Leaves room for
 # running reqs whose max_new_tokens under-estimates actual decode length.
 _KV_BUDGET_MARGIN = float(os.environ.get("PEEK_ONLINE_KV_BUDGET_MARGIN", "0.05"))
-# PEEK_ONLINE_PREDICT_DECODE=1 -- use peek's per-cluster EWMA of completed reqs'
-# output length to estimate decode commitment, rather than the (loose)
-# `max_new_tokens` ceiling. Defaults on when KV-budget is on, since the
-# whole point of KV-budget is moot without a tighter estimate. Falls back
-# to max_new_tokens when no prediction is available (cold-start).
-_PREDICT_DECODE = _flag("PEEK_ONLINE_PREDICT_DECODE") or (
-    _KV_BUDGET and os.environ.get("PEEK_ONLINE_PREDICT_DECODE", "1").lower()
-    not in ("0", "false", "no", "off")
-)
-# Min completed samples per cluster before its EWMA is trusted for
-# prediction. Lower = adapts faster, higher = more stable. 3 is a good
-# tradeoff for our workloads (covers warm-up of ~30 reqs over 100 groups).
-_PREDICT_MIN_SAMPLES = int(os.environ.get("PEEK_ONLINE_PREDICT_MIN_SAMPLES", "3"))
-# Safety multiplier on predicted decode length: actual outputs vary even
-# within a cluster, so reserve 1.5x the EWMA to avoid under-reservation.
-_PREDICT_SAFETY = float(os.environ.get("PEEK_ONLINE_PREDICT_SAFETY", "1.5"))
 _PHASE_TRACKING = (
     _flag("PEEK_ONLINE_PHASE_TRACKING") or _EVICTION or _SCHEDULER
 )
@@ -534,47 +518,9 @@ def _install() -> None:
 
         _orig_calc_priority = SchedulePolicy.calc_priority
         _peek_call_count = [0]
-        # Decode-prediction observation state: snapshot of last tick's
-        # running-batch reqs as {rid_str: (tokens_tuple, last_output_len)}.
-        # When a rid disappears between ticks it has finished (or been
-        # retracted; rare enough not to matter for EWMA). Record into the
-        # pending tree so predict_decode can use it for future arrivals.
-        _running_seen: dict = {}
-        _decode_obs_count = [0]
 
         def _patched_calc_priority(self, waiting_queue, running_batch=None):
             tcp = _time.perf_counter_ns() if _PROFILE else 0
-            # --- Decode-length observation -----------------------------------
-            # Update _running_seen with current running reqs; for any rid that
-            # vanished, push (input_tokens, output_len) into peek's tree.
-            if _PREDICT_DECODE and running_batch is not None:
-                running_reqs = getattr(running_batch, "reqs", None) or []
-                cur_rids = set()
-                for rr in running_reqs:
-                    cur_rids.add(rr.rid)
-                    out_len = len(rr.output_ids or [])
-                    if rr.rid in _running_seen:
-                        # Keep the input tokens captured on first sight; refresh
-                        # only the running output length.
-                        _running_seen[rr.rid] = (
-                            _running_seen[rr.rid][0],
-                            out_len,
-                        )
-                    else:
-                        _running_seen[rr.rid] = (
-                            tuple(rr.origin_input_ids),
-                            out_len,
-                        )
-                # Reqs that disappeared from the running batch -> finished.
-                for rid_str in list(_running_seen.keys()):
-                    if rid_str not in cur_rids:
-                        tokens_tuple, last_out = _running_seen.pop(rid_str)
-                        if last_out > 0:
-                            try:
-                                peek_tree.record_decode(list(tokens_tuple), int(last_out))
-                                _decode_obs_count[0] += 1
-                            except Exception as e:
-                                _log.warning("peek: record_decode failed: %s", e)
             # Only override when LPM is the configured policy. Other policies
             # (FCFS, DFS_WEIGHT, LOF, RANDOM) delegate to sglang's original.
             if self.policy != CacheAwarePolicy.LPM:
@@ -800,27 +746,14 @@ def _install() -> None:
             # waiting_queue (we move them to the back) and re-qualify next
             # tick as running reqs progress.
             if _KV_BUDGET and running_batch is not None:
-                # Helper: estimate remaining decode tokens for one req.
-                # When PREDICT_DECODE is on, query peek's per-cluster EWMA
-                # (x safety) and clamp by max_new_tokens. Otherwise fall
-                # back to (max_new_tokens - already-decoded), which is
-                # sglang's worst-case projection.
+                # Helper: remaining decode tokens for one req -- sglang's
+                # worst-case projection, (max_new_tokens - already-decoded).
                 def _remaining_decode(req, already_out: int) -> int:
                     try:
                         max_new = int(req.sampling_params.max_new_tokens)
                     except Exception:
                         max_new = 0
-                    worst = max(0, max_new - already_out)
-                    if not _PREDICT_DECODE:
-                        return worst
-                    tokens = list(req.origin_input_ids)
-                    pred = peek_tree.predict_decode(tokens, _PREDICT_MIN_SAMPLES)
-                    if pred is None:
-                        return worst
-                    ewma, _samples = pred
-                    target_total = int(ewma * _PREDICT_SAFETY)
-                    target_total = min(target_total, max_new) if max_new > 0 else target_total
-                    return max(0, target_total - already_out)
+                    return max(0, max_new - already_out)
 
                 running_reqs = getattr(running_batch, "reqs", None) or []
                 running_commit = 0

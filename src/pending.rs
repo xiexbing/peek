@@ -31,6 +31,12 @@ pub struct PendingTree {
     pub(crate) paths: FxHashMap<Rid, Vec<Token>>,
 }
 
+impl Default for PendingTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PendingTree {
     pub fn new() -> Self {
         Self {
@@ -268,7 +274,8 @@ impl PyPendingTree {
     /// whose value is either `(cluster_node_id, cluster_depth, cluster_size)`
     /// or `None` for singletons. Collapses N Python↔Rust crossings into one.
     fn all_cluster_info(&self) -> HashMap<u64, Option<(u32, usize, u32)>> {
-        let mut out: HashMap<u64, Option<(u32, usize, u32)>> = HashMap::default();
+        let mut out: HashMap<u64, Option<(u32, usize, u32)>> =
+            HashMap::with_capacity(self.inner.paths.len());
         for (&rid, tokens) in &self.inner.paths {
             out.insert(rid, self.inner.tree.cluster_info(rid, tokens));
         }
@@ -310,27 +317,6 @@ impl PyPendingTree {
         self.inner.tree.longest_match_along(&tokens)
     }
 
-    /// Record an observed completion: the req with tokens `tokens` emitted
-    /// `output_len` decode tokens. Updates per-cluster EWMA at the deepest
-    /// node matching `tokens`. The node stays alive after GC even if its
-    /// pending count drops to zero, so `predict_decode` can query it later.
-    fn record_decode(&mut self, tokens: Vec<u32>, output_len: u32) {
-        self.inner.tree.record_decode(&tokens, output_len);
-    }
-
-    /// Predict decode length for a new req with token sequence `tokens`.
-    /// Returns `(ewma, sample_count)` from the deepest tree node on `tokens`'s
-    /// path whose sample count meets `min_samples`, or `None` if no qualifying
-    /// ancestor exists.
-    #[pyo3(signature = (tokens, min_samples = 3))]
-    fn predict_decode(
-        &self,
-        tokens: Vec<u32>,
-        min_samples: u32,
-    ) -> Option<(f32, u32)> {
-        self.inner.tree.predict_decode(&tokens, min_samples)
-    }
-
     /// Dump every node of the tree as a flat list for out-of-Rust walking.
     /// Each entry: (node_id, parent_id, edge_tokens, terminators, pending_count).
     /// Root has node_id=0 and parent_id=0 (self-loop). Skips free slots.
@@ -360,6 +346,11 @@ impl PyPendingTree {
     ///
     /// `cache_match_fn(tokens: list[int]) -> int` must return the length of
     /// the longest prefix of `tokens` present in the external cache.
+    ///
+    /// `cache_match_fn` MUST NOT call back into this `PendingTree`. The whole
+    /// traversal runs under one `&self` borrow, so any mutating method invoked
+    /// from the callback raises `RuntimeError: Already borrowed` mid-walk.
+    /// Read-only methods are safe.
     ///
     /// `min_pending_count` (default 1) controls whether to descend into
     /// subtrees of low-sharing reqs. Set to 2 to skip singleton subtrees --
@@ -445,8 +436,9 @@ pub fn lpm_sort_order(keys: Vec<(i64, bool)>) -> Vec<usize> {
             // Both deprio: treat as equal (+inf key in Python) -> stable
             // sort preserves arrival order. Needed for LPM parity.
             (true, true) => Ordering::Equal,
-            // Both non-deprio: larger main_hit first.
-            (false, false) => (-mh_a).cmp(&(-mh_b)),
+            // Both non-deprio: larger main_hit first. Reversed comparison
+            // rather than negation -- `-i64::MIN` would overflow.
+            (false, false) => mh_b.cmp(&mh_a),
         }
     });
     idx
