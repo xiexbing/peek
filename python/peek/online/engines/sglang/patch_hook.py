@@ -15,20 +15,27 @@
 """sglang integration: inject peek's demand-aware eviction strategy and keep
 peek's pending tree in sync with the scheduler's waiting queue.
 
-Gated by env var so the same binary can run vanilla (baseline) or peek-enabled
-with no code changes:
+Gated by per-mechanism env flags so the same binary can run vanilla
+(baseline) or peek-enabled with no code changes. Any of PEEK_ONLINE_EVICTION,
+PEEK_ONLINE_SCHEDULER (or PEEK_ONLINE_CLPM / PEEK_ONLINE_LPM), or
+PEEK_ONLINE_PHASE_TRACKING activates the hook; with none set the module is a
+no-op. The legacy PEEK_ONLINE_ENABLED=1 (eviction) / =full (eviction +
+scheduling) switch is still honored:
 
-    PEEK_ONLINE_ENABLED=1 python -m sglang.launch_server ...     # peek active
+    PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_EVICTION=1 python -m sglang.launch_server ...
     python -m sglang.launch_server ...                    # vanilla baseline
 
-Integration strategy (eviction-only -- does not touch LPM scheduling):
+Integration strategy (scheduling + eviction, each independently gated):
 
-1. Monkey-patch `RadixCache.__init__` to replace its eviction_strategy with
-   PeekDemandStrategy referencing a singleton PendingTree.
+1. Monkey-patch `RadixCache.__init__` (when PEEK_ONLINE_EVICTION) to replace its
+   eviction_strategy with PeekDemandStrategy referencing a singleton
+   PendingTree.
 2. Monkey-patch `Scheduler.process_input_requests` to sync the pending tree
    against `self.waiting_queue` on every scheduler iteration. This is a
    diff-based sync -- it tolerates any sglang mutation path (append, pop,
    list-comprehension reassignment) without needing to know about each one.
+3. Monkey-patch `SchedulePolicy.calc_priority` (when PEEK_ONLINE_SCHEDULER) to
+   apply peek's LPM/cLPM ordering to the waiting queue.
 
 The singleton PendingTree is fine because a single sglang scheduler process
 owns one waiting_queue. For multi-replica deployments peek would need to be
@@ -547,7 +554,8 @@ def _install() -> None:
                     cur_rids.add(rr.rid)
                     out_len = len(rr.output_ids or [])
                     if rr.rid in _running_seen:
-                        _, _ = _running_seen[rr.rid]
+                        # Keep the input tokens captured on first sight; refresh
+                        # only the running output length.
                         _running_seen[rr.rid] = (
                             _running_seen[rr.rid][0],
                             out_len,
@@ -936,11 +944,9 @@ def _install() -> None:
         _profile_path = _profile_path_template.format(pid=os.getpid())
 
         def _dump_loop():
-            from peek.online.eviction import _eviction_profile
             while True:
                 try:
                     snapshot = dict(_prof)
-                    snapshot["eviction"] = _eviction_profile()
                     with open(_profile_path, "w") as f:
                         _json.dump(snapshot, f)
                 except Exception:

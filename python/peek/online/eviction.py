@@ -79,7 +79,6 @@ _EVICTION_DECAY_TAU = float(os.environ.get("PEEK_ONLINE_EVICTION_DECAY_TAU", "30
 _DEBUG_PATH = os.environ.get(
     "PEEK_ONLINE_EVICTION_DEBUG_PATH", "/tmp/peek_eviction_debug_{pid}.json"
 )
-_prof = {"gp_calls": 0, "gp_ns": 0, "path_calls": 0, "path_ns": 0, "demand_calls": 0, "demand_ns": 0}
 
 # Eviction diagnostics -- count of get_priority calls bucketed by pending_demand
 # value, plus counts of empty-path (root) and how often peek's signal differs
@@ -226,10 +225,6 @@ class PeekDemandStrategy:
         return (priority, last_access)
 
 
-def _eviction_profile() -> dict:
-    return dict(_prof)
-
-
 def _max_ancestor_demand(node, tree) -> Tuple[int, int, int]:
     """Walk from `node` up to root and find the ancestor with the maximum
     "tokens-at-risk" = pending_demand(ancestor_path) x len(ancestor_path).
@@ -267,7 +262,6 @@ def _max_ancestor_demand(node, tree) -> Tuple[int, int, int]:
     max_len = 0
     levels = 0
     ancestor: list[int] = []
-    last_d = -1
     for seg in reversed(segments):
         ancestor = ancestor + seg
         levels += 1
@@ -280,28 +274,4 @@ def _max_ancestor_demand(node, tree) -> Tuple[int, int, int]:
         # have ≤ rids than shallower).
         if d == 0 and max_value > 0:
             break
-        last_d = d
     return max_value, max_len, levels
-
-
-def _node_path_tokens(node) -> list[int]:
-    """Reconstruct the token sequence from sglang's root to `node` by
-    walking parent links and concatenating each node's key's token_ids."""
-    segments: list[list[int]] = []
-    cur = node
-    # Stop when we hit the root (whose parent is None or self-loop depending on version).
-    while cur is not None and getattr(cur, "parent", None) is not None and cur.parent is not cur:
-        key = getattr(cur, "key", None)
-        if key is None:
-            break
-        # sglang's RadixKey stores tokens in `.token_ids`.
-        tokens = getattr(key, "token_ids", None)
-        if tokens is None:
-            break
-        segments.append(list(tokens))
-        cur = cur.parent
-    # segments are leaf -> root; reverse and flatten.
-    out: list[int] = []
-    for seg in reversed(segments):
-        out.extend(seg)
-    return out

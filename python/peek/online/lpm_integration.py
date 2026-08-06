@@ -35,7 +35,7 @@ that LPM alone cannot produce:
 
 This module exposes two sort entry points:
 
-* ``peek_lpm_sort_inplace`` -- LPM-equivalent sort. Key (3-tuple, with
+* ``peek_sort_inplace`` -- LPM-equivalent sort. Key (3-tuple, with
   ``rank_by_cluster_size=False``):
 
       (-main_hit, is_deprioritized, rid)
@@ -153,25 +153,26 @@ def peek_sort_inplace(
 ) -> Set[str]:
     """Sort waiting_queue in-place using peek's cluster-grouped LPM scheduler.
 
-    Sort key (5-tuple, lexicographic ascending):
+    Sort key (4-tuple, lexicographic ascending), with
+    ``rank_by_cluster_size=True``:
 
-        (-main_hit, -cluster_size, cluster_node_id, is_deprioritized, rid)
+        (-main_hit, cluster_node_id, is_deprioritized, rid)
 
       1. `-main_hit` -- LPM primary. Cache-warm reqs (prefix_indices long)
          sort first.
-      2. `-cluster_size` -- across clusters tied on main_hit, the larger
-         cluster's reqs come first. Singletons have size=0 so they sort
-         last among main_hit ties.
-      3. `cluster_node_id` -- groups all members of the same cluster into a
+      2. `cluster_node_id` -- groups all members of the same cluster into a
          consecutive block in the queue. Singletons get a sentinel id so
          they sort after all real clusters (which have node ids < 2^31).
-      4. `is_deprioritized` -- within a cluster block, the pioneer (flag=0)
+         Clusters are NOT ranked by size -- inter-cluster order follows the
+         arrival-stable node ids, so small clusters aren't starved by newer
+         big-cluster arrivals cutting in front.
+      3. `is_deprioritized` -- within a cluster block, the pioneer (flag=0)
          sits immediately before its siblings (flag=1). This lets the
          scheduler admit pioneer_A, A2, A3, ..., pioneer_B, B2, B3, ...
          rather than "all pioneers, then all siblings."
-      5. `rid` -- stable final tiebreak.
+      4. `rid` -- stable final tiebreak.
 
-    Setting `rank_by_cluster_size=False` drops keys 2-4 and reproduces
+    Setting `rank_by_cluster_size=False` drops keys 2-3 and reproduces
     sglang's vanilla LPM order (for A/B diagnostic runs).
 
     Returns the deprioritize set for validation/debugging.
