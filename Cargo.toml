@@ -25,7 +25,11 @@ name = "_core"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
+# `extension-module` is NOT listed here on purpose: maturin injects it via
+# pyproject.toml's `[tool.maturin] features`. Adding it unconditionally would
+# also apply it to `cargo test`, whose test binary must link libpython -- with
+# the feature on, pyo3 omits those symbols and the test target fails to link.
+pyo3 = { version = "0.22", features = ["abi3-py39"] }
 rustc-hash = "2"
 
 [profile.release]

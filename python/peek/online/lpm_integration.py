@@ -182,7 +182,7 @@ def peek_sort_inplace(
     # path: same sort output as stock sglang LPM, no peek-specific bookkeeping.
     all_info = {} if peek_lpm_sort else tree.all_cluster_info()
     deprioritized: Set[str] = set()
-    per_rid_sort_info: Dict[str, tuple] = {}
+    per_rid_sort_info: Dict[str, int] = {}
     seen_prefixes: Set[tuple] = set()
 
     # main_hits lookup helper. If the caller provided dualwalk results, use
@@ -207,10 +207,10 @@ def peek_sort_inplace(
             rid_int = rid_to_int.get(r.rid)
             info = all_info.get(rid_int) if rid_int is not None else None
             if info is None:
-                per_rid_sort_info[r.rid] = (_SINGLETON_NODE_ID, 0)
+                per_rid_sort_info[r.rid] = _SINGLETON_NODE_ID
             else:
-                cluster_node, _depth, size = info
-                per_rid_sort_info[r.rid] = (cluster_node, size)
+                cluster_node, _depth, _size = info
+                per_rid_sort_info[r.rid] = cluster_node
         if check_disabled:
             continue
         main_hit = _mh(r)
@@ -252,9 +252,7 @@ def peek_sort_inplace(
         main_hit = _mh(r)
         is_depr = 1 if r.rid in deprioritized else 0
         if rank_by_cluster_size:
-            node_id, _size = per_rid_sort_info.get(
-                r.rid, (_SINGLETON_NODE_ID, 0)
-            )
+            node_id = per_rid_sort_info.get(r.rid, _SINGLETON_NODE_ID)
             return (-main_hit, node_id, is_depr, r.rid)
         # 3-tuple LPM-equivalent (deprio tiebreak within main_hit bucket,
         # NOT banished to end; differs from strict LPM in mid-warm edge cases).

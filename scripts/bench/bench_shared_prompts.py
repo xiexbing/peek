@@ -563,7 +563,8 @@ async def run_sweep(args) -> dict:
         # type of workload -- chat vs RAG vs CoT), not a per-request roll.
         # Reqs sharing a system prompt come from the same caller and have
         # similar output-length distributions. Assigning one target per group
-        # gives peek's per-cluster decode predictor real signal to learn from.
+        # keeps decode length correlated with prefix sharing, so cache-hit
+        # and latency numbers aren't washed out by per-request length noise.
         rng = random.Random(args.seed ^ 0xD3C0DE)
         n_groups = max(args.groups, 1)
         group_lengths: List[int] = []
@@ -883,8 +884,9 @@ def _parse() -> argparse.Namespace:
         help="Send uniform max_tokens=--max-tokens to sglang regardless of "
              "--decode-mix target. Target length is communicated to the model "
              "via a 'respond in ~N words' prompt instruction instead. This "
-             "makes sglang's new_token_ratio estimator uncertain, exercising "
-             "KV-budget admission control the way production traffic does.",
+             "makes sglang's new_token_ratio estimator uncertain, so the "
+             "engine schedules under the same length uncertainty production "
+             "traffic imposes rather than a tight per-request ceiling.",
     )
     p.add_argument(
         "--rate", type=float, default=0.0,

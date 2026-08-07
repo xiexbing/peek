@@ -183,14 +183,27 @@ _SCHEDULE = _SCHEDULER
 _PROFILE = _flag("PEEK_ONLINE_PROFILE")
 _VALIDATE = _flag("PEEK_ONLINE_VALIDATE")
 
-# PEEK_ONLINE_DECODE_AWARE was consumed by the legacy scoring path's decode-budget
-# admission logic. Scoring is gone; the flag is a no-op now. Warn rather than
-# silently accept so old sweep scripts surface the deprecation.
-if _flag("PEEK_ONLINE_DECODE_AWARE"):
+# Flags for mechanisms that no longer exist. PEEK_ONLINE_DECODE_AWARE drove the
+# legacy scoring path's decode-budget admission; PEEK_ONLINE_KV_BUDGET* gated
+# commitment-based admission control, which relied on PEEK_ONLINE_PREDICT_DECODE*
+# (the per-cluster decode-length EWMA). Both mechanisms are gone, so all of these
+# are no-ops. Warn rather than silently accept: a sweep script still setting them
+# would otherwise report vanilla numbers under a peek-sounding label.
+_DEAD_FLAGS = (
+    "PEEK_ONLINE_DECODE_AWARE",
+    "PEEK_ONLINE_KV_BUDGET",
+    "PEEK_ONLINE_KV_BUDGET_MARGIN",
+    "PEEK_ONLINE_PREDICT_DECODE",
+    "PEEK_ONLINE_PREDICT_MIN_SAMPLES",
+    "PEEK_ONLINE_PREDICT_SAFETY",
+)
+_dead_set = [name for name in _DEAD_FLAGS if os.environ.get(name)]
+if _dead_set:
     import warnings
     warnings.warn(
-        "peek: PEEK_ONLINE_DECODE_AWARE=1 is ignored -- decode-budget admission was "
-        "part of the removed scoring path. Remove from launch env.",
+        "peek: ignoring removed env flag(s) %s -- decode-length prediction and "
+        "KV-budget admission control were part of the removed scoring path. "
+        "Remove from launch env." % ", ".join(_dead_set),
         stacklevel=2,
     )
 _VALIDATE_PATH = os.environ.get(
