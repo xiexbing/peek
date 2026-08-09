@@ -171,7 +171,6 @@ def _install() -> None:
     from vllm.v1.core.sched.scheduler import Scheduler
     from vllm.v1.core.sched.request_queue import (
         FCFSRequestQueue,
-        SchedulingPolicy,
     )
     from vllm.v1.core.block_pool import BlockPool
     from vllm.v1.core.kv_cache_utils import get_block_hash
@@ -182,8 +181,14 @@ def _install() -> None:
 
     peek_tree = PendingTree()
 
-    # rid (vllm uses str) -> u64 interned rid for peek.
+    # rid (vllm uses str) -> u64 interned rid for peek, plus the reverse map so
+    # a departing rid can be evicted from both without scanning. Pure working
+    # state: only rids currently in the waiting queue are ever looked up, so
+    # both are pruned as rids leave (see _forget_rid). Without that they would
+    # grow for the life of the server. _counter never rewinds, so a rid that
+    # comes back is assigned a fresh id and cannot collide with a stale entry.
     rid_interner: dict[str, int] = {}
+    _rid_unintern: dict[int, str] = {}
     _counter = [0]
 
     def _intern(rid_str: str) -> int:
@@ -192,7 +197,15 @@ def _install() -> None:
             _counter[0] += 1
             rid_int = _counter[0]
             rid_interner[rid_str] = rid_int
+            _rid_unintern[rid_int] = rid_str
         return rid_int
+
+    def _forget_rid(rid_int: int) -> None:
+        """Drop a departed rid's interner entries. Called from every path that
+        removes a rid from peek's tree."""
+        rid_str = _rid_unintern.pop(rid_int, None)
+        if rid_str is not None:
+            rid_interner.pop(rid_str, None)
 
     _seen_this_session: set[int] = set()
     _last_rids: set = set()
@@ -307,6 +320,7 @@ def _install() -> None:
                     _prof["discard_calls"] += 1
                     _prof["discard_ns"] += _time.perf_counter_ns() - t1
                 _seen_this_session.discard(rid_int)
+                _forget_rid(rid_int)
 
         if _PHASE_TRACKING:
             for rid_str in _last_rids - current_strs:
@@ -437,11 +451,17 @@ def _install() -> None:
         )
 
         if _PEEK_CLPM:
-            arr_ts = {
-                rid_str: slot.get("arrive_ts", 0.0)
-                for rid_str, slot in _phase_timings.items()
-                if "arrive_ts" in slot
-            } if _PHASE_TRACKING else None
+            # Build from the waiting queue, NOT from _phase_timings: that dict
+            # is the run's whole measurement record (every rid ever seen), so
+            # iterating it here would cost O(all requests processed) on every
+            # scheduler tick. Only queued rids are read.
+            arr_ts = None
+            if _PHASE_TRACKING:
+                arr_ts = {}
+                for _r in wq_list:
+                    _slot = _phase_timings.get(_r.request_id)
+                    if _slot is not None and "arrive_ts" in _slot:
+                        arr_ts[_r.request_id] = _slot["arrive_ts"]
             peek_clpm_sort_inplace(
                 adapters,
                 rid_to_int,
@@ -535,6 +555,7 @@ def _install() -> None:
                         if _EVICTION:
                             _drop_rid(rid_int)
                         _seen_this_session.discard(rid_int)
+                        _forget_rid(rid_int)
             except Exception as e:
                 _log.warning("peek: finish_requests drop failed: %s", e)
             return result

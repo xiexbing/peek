@@ -23,11 +23,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import os
 import random
-import sys
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -707,7 +705,7 @@ def code_completion(
     _RETS = ["list", "int", "bool", "str", "dict", "None"]
 
     prompts = []
-    for i in range(n):
+    for _ in range(n):
         tmpl = rng.choice(_TEMPLATES)
         text = tmpl.format(
             name=rng.choice(_NAMES),

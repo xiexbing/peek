@@ -632,7 +632,6 @@ def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
 
     group_data: list[tuple[tuple, list[Any], int, float]] = []
     # (key, members, cached_len, eviction_risk)
-    total_requests = len(waiting_queue)
 
     # Use read-only match to avoid poisoning LRU timestamps.
     # Scoring all groups with regular match_prefix refreshes every
@@ -680,7 +679,7 @@ def sglang_pre_schedule(tree_cache: Any, waiting_queue: list[Any]) -> bool:
     # Estimate wave size as min(total_requests, 32) -- rough batch size.
     _BATCH_EST = 32
     scored: list[tuple[float, list[Any]]] = []
-    for key, members, cached_len, eviction_risk in group_data:
+    for _key, members, cached_len, eviction_risk in group_data:
         group_size = len(members)
         future_refs = max(0, group_size - _BATCH_EST)
 
@@ -798,7 +797,7 @@ def sglang_post_match_reorder(waiting_queue: list[Any]) -> None:
     # Group by last_node identity (requests matching the same prefix
     # land on the same radix tree node)
     groups: dict[int, list[tuple[int, Any]]] = defaultdict(list)
-    for i, r in enumerate(waiting_queue):
+    for r in waiting_queue:
         node_id = id(getattr(r, "last_node", None))
         cached_len = len(getattr(r, "prefix_indices", []))
         groups[node_id].append((cached_len, r))
@@ -806,7 +805,7 @@ def sglang_post_match_reorder(waiting_queue: list[Any]) -> None:
     # Score each group: total cached tokens (= cached_len x group_size
     # since all members share the same prefix match)
     scored: list[tuple[int, list[Any]]] = []
-    for node_id, members in groups.items():
+    for members in groups.values():
         total_cached = sum(cl for cl, _ in members)
         reqs = [r for _, r in members]
         scored.append((total_cached, reqs))

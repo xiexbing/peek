@@ -297,6 +297,26 @@ impl Tree {
         }
     }
 
+    /// Identity of the position reached by descending exactly `tokens`, as
+    /// `(end_node, end_offset)`.
+    ///
+    /// For token sequences that are fully present in the tree (i.e. prefixes
+    /// of pending rids), two sequences yield the same position if and only if
+    /// they are token-for-token identical. That makes this a cheap O(|tokens|)
+    /// stand-in for hashing the tokens themselves: descending is deterministic,
+    /// so identical prefixes land on the same (node, offset), and any first
+    /// divergence forces a different child or a different offset within an
+    /// edge.
+    ///
+    /// Callers must only pass sequences known to be in the tree. A sequence
+    /// that runs off the tree stops early, and two different such sequences
+    /// can stop at the same position -- the returned identity would then
+    /// conflate them.
+    pub fn prefix_position(&self, tokens: &[Token]) -> (NodeId, usize) {
+        let d = self.descend(tokens);
+        (d.end_node, d.end_offset)
+    }
+
     /// Walk `tokens` and return the length of the longest prefix whose path
     /// passes through nodes with `pending_count >= threshold`. Mid-edge matches
     /// are counted: along any edge from P to C, the count is uniformly
@@ -1058,6 +1078,37 @@ mod tests {
                 "cluster {}: reported size {} != ground subtree count {} (path {:?})",
                 nid, size0, subtree_count, path_tokens);
         }
+    }
+
+    #[test]
+    fn prefix_position_identifies_shared_prefixes() {
+        // The claim key behind lpm_order's pioneer/sibling split: equal iff the
+        // first N tokens are identical, regardless of how the tree happens to
+        // be split into edges.
+        let mut t = Tree::new();
+        let a: Vec<Token> = (0..40).chain([100]).collect();
+        let b: Vec<Token> = (0..40).chain([100]).collect(); // identical to a
+        let c: Vec<Token> = (0..40).chain([200]).collect(); // shares 40 tokens
+        let d: Vec<Token> = (0..20).chain(900..920).collect(); // shares only 20
+        t.insert(1, &a);
+        t.insert(2, &b);
+        t.insert(3, &c);
+        t.insert(4, &d);
+
+        // a, b and c all share their first 32 tokens -> same claim.
+        let pa = t.prefix_position(&a[..32]);
+        assert_eq!(pa, t.prefix_position(&b[..32]));
+        assert_eq!(pa, t.prefix_position(&c[..32]));
+        // d diverges at token 20 -> different claim.
+        assert_ne!(pa, t.prefix_position(&d[..32]));
+
+        // Nested clusters: a/b terminate together (deeper cluster) while c
+        // branches earlier, so cluster_info hands back DIFFERENT node ids even
+        // though all three share 40 tokens. This is exactly why lpm_order keys
+        // on prefix_position instead.
+        let (cn_a, _, _) = t.cluster_info(1, &a).unwrap();
+        let (cn_c, _, _) = t.cluster_info(3, &c).unwrap();
+        assert_ne!(cn_a, cn_c, "nested clusters have distinct node ids");
     }
 
     #[test]

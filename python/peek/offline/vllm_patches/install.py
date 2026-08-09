@@ -119,7 +119,7 @@ def patch_kv_cache_utils(vllm_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: kv_cache_utils.py -- added queue_ref_count to KVCacheBlock")
+        print("  PATCHED: kv_cache_utils.py -- added queue_ref_count to KVCacheBlock")
 
     # 1b. Add queue-aware popleft to FreeKVCacheBlockQueue
     if "popleft_queue_aware" not in text:
@@ -190,10 +190,10 @@ def patch_kv_cache_utils(vllm_dir: Path) -> bool:
             # Just append to the class by finding the remove method and adding after
             text = text.rstrip() + "\n" + queue_aware_method
         changed = True
-        print(f"  PATCHED: kv_cache_utils.py -- added popleft_queue_aware method")
+        print("  PATCHED: kv_cache_utils.py -- added popleft_queue_aware method")
 
     if not changed:
-        print(f"  OK: kv_cache_utils.py already fully patched")
+        print("  OK: kv_cache_utils.py already fully patched")
 
     if changed:
         path.write_text(text)
@@ -244,7 +244,7 @@ def patch_block_pool(vllm_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: block_pool.py -- added reset/inc_queue_ref_counts methods")
+        print("  PATCHED: block_pool.py -- added reset/inc_queue_ref_counts methods")
 
     # 2b. Add enable_queue_aware_eviction flag to __init__
     if "enable_queue_aware_eviction" not in text:
@@ -271,7 +271,7 @@ def patch_block_pool(vllm_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: block_pool.py -- added enable_queue_aware_eviction flag")
+        print("  PATCHED: block_pool.py -- added enable_queue_aware_eviction flag")
 
     # 2c. Use queue-aware eviction in get_new_blocks when enabled
     if "popleft_queue_aware" not in text:
@@ -286,10 +286,10 @@ def patch_block_pool(vllm_dir: Path) -> bool:
             1,
         )
         changed = True
-        print(f"  PATCHED: block_pool.py -- get_new_blocks uses queue-aware eviction")
+        print("  PATCHED: block_pool.py -- get_new_blocks uses queue-aware eviction")
 
     if not changed:
-        print(f"  OK: block_pool.py already fully patched")
+        print("  OK: block_pool.py already fully patched")
 
     if changed:
         path.write_text(text)
@@ -320,7 +320,7 @@ def patch_scheduler(vllm_dir: Path) -> bool:
     marker = "_peek_hook"
 
     if marker in text:
-        print(f"  OK: scheduler.py already fully patched")
+        print("  OK: scheduler.py already fully patched")
         return True
 
     backup(path)
@@ -355,10 +355,10 @@ def patch_scheduler(vllm_dir: Path) -> bool:
 
     if marker in text:
         path.write_text(text)
-        print(f"  PATCHED: scheduler.py -- added Peek scheduling hook")
+        print("  PATCHED: scheduler.py -- added Peek scheduling hook")
         return True
     else:
-        print(f"  FAILED: scheduler.py -- could not find insertion point")
+        print("  FAILED: scheduler.py -- could not find insertion point")
         return False
 
 
@@ -376,7 +376,7 @@ def patch_cache_config(vllm_dir: Path) -> bool:
     text = path.read_text()
 
     if "enable_queue_aware_eviction" in text:
-        print(f"  OK: cache.py already has enable_queue_aware_eviction")
+        print("  OK: cache.py already has enable_queue_aware_eviction")
         return True
 
     backup(path)
@@ -391,10 +391,10 @@ def patch_cache_config(vllm_dir: Path) -> bool:
 
     if "enable_queue_aware_eviction" in text:
         path.write_text(text)
-        print(f"  PATCHED: cache.py -- added enable_queue_aware_eviction field")
+        print("  PATCHED: cache.py -- added enable_queue_aware_eviction field")
         return True
     else:
-        print(f"  FAILED: cache.py -- could not find insertion point")
+        print("  FAILED: cache.py -- could not find insertion point")
         return False
 
 

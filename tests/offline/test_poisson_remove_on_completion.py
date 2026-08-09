@@ -23,8 +23,6 @@ Poisson arrival -> HTTP send -> response -> remove() flow.
 import pytest
 
 pytestmark = pytest.mark.gpu
-import asyncio
-import time
 import unittest
 
 from peek.offline.engine import CacheStateStore

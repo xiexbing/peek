@@ -44,10 +44,10 @@ scoped per scheduler, but that's out of scope for this benchmark.
 
 from __future__ import annotations
 
-import atexit
 import logging
 import os
 import time as _time
+
 
 def _flag(name: str) -> bool:
     return os.environ.get(name, "").lower() in ("1", "true", "yes", "on")
@@ -183,6 +183,17 @@ _SCHEDULE = _SCHEDULER
 _PROFILE = _flag("PEEK_ONLINE_PROFILE")
 _VALIDATE = _flag("PEEK_ONLINE_VALIDATE")
 
+# Queue length past which peek_lpm bypasses to FCFS, mirroring stock sglang
+# LPM. Read once here rather than inside calc_priority: that runs on every
+# scheduler iteration, and re-reading os.environ there put an env lookup and an
+# int() parse in the hot path.
+_LPM_FB_THRESHOLD = int(
+    os.environ.get("PEEK_ONLINE_LPM_FALLBACK_THRESHOLD", "128")
+)
+# Ablation: skip the dualwalk and fall back to len(r.prefix_indices) as the
+# sort key. Same reason for reading it here.
+_SKIP_DUALWALK = _flag("PEEK_ONLINE_LPM_SKIP_DUALWALK")
+
 # Flags for mechanisms that no longer exist. PEEK_ONLINE_DECODE_AWARE drove the
 # legacy scoring path's decode-budget admission; PEEK_ONLINE_KV_BUDGET* gated
 # commitment-based admission control, which relied on PEEK_ONLINE_PREDICT_DECODE*
@@ -245,9 +256,20 @@ def _install() -> None:
     # pick_ts:   wall-clock when the scheduler pulls it out of waiting
     #            (waiting_queue diff transitions rid from present -> absent).
     # Using time.time() so the client can match against its own wall-clock.
+    #
+    # Deliberately unbounded: this IS the run's measurement record, read whole
+    # by the client after the run. Nothing in the hot path may iterate it --
+    # look rids up individually instead.
     _phase_timings: dict = {}
-    # string rid -> u64 interned rid (peek speaks u64, sglang uses strings)
+    # string rid -> u64 interned rid (peek speaks u64, sglang uses strings),
+    # plus the reverse map so a departing rid can be evicted from both without
+    # scanning. Unlike _phase_timings these are pure working state: only rids
+    # currently in the waiting queue are ever looked up, so they are pruned in
+    # _sync as rids leave. Without that they would grow for the life of the
+    # server. _counter never rewinds, so a retracted rid that comes back is
+    # assigned a fresh id and cannot collide with its own stale tree entry.
     rid_interner: dict[str, int] = {}
+    _rid_unintern: dict[int, str] = {}
     _counter = [0]
 
     def _intern(rid_str: str) -> int:
@@ -256,6 +278,7 @@ def _install() -> None:
             _counter[0] += 1
             rid_int = _counter[0]
             rid_interner[rid_str] = rid_int
+            _rid_unintern[rid_int] = rid_str
         return rid_int
 
     # --- 1. RadixCache eviction strategy injection ---------------------------
@@ -282,7 +305,6 @@ def _install() -> None:
         # pops actually follow the policy (low priority first). Gated by
         # PEEK_ONLINE_EVICTION_DEBUG=1 so default runs don't pay the overhead.
         if _flag("PEEK_ONLINE_EVICTION_DEBUG"):
-            import heapq
             from peek.online.eviction import _max_ancestor_demand
             _orig_evict = RadixCache.evict
             _trace_path = "/tmp/peek_eviction_trace_{pid}.jsonl".format(pid=os.getpid())
@@ -408,6 +430,12 @@ def _install() -> None:
                     _prof["discard_calls"] += 1
                     _prof["discard_ns"] += _time.perf_counter_ns() - t1
                 _seen_this_session.discard(rid_int)
+                # Drop the interner entry too -- the rid is gone from the queue
+                # and only queued rids are ever interned or looked up. Keeping
+                # it would leak one entry per request for the server's lifetime.
+                _departed = _rid_unintern.pop(rid_int, None)
+                if _departed is not None:
+                    rid_interner.pop(_departed, None)
         # Phase: rids that were in last_rids but are no longer in wq were
         # picked by the scheduler (pulled from waiting -> running batch) or
         # aborted. Record pick_ts. Works off the string rid set directly.
@@ -538,10 +566,7 @@ def _install() -> None:
             # mirrors this fallback to preserve apples-to-apples perf parity
             # with stock LPM. Env-tunable so we can later probe how far peek's
             # cheaper pending-tree maintenance lets us push the threshold.
-            _lpm_fb_threshold = int(
-                os.environ.get("PEEK_ONLINE_LPM_FALLBACK_THRESHOLD", "128")
-            )
-            if _PEEK_LPM and len(waiting_queue) > _lpm_fb_threshold:
+            if _PEEK_LPM and len(waiting_queue) > _LPM_FB_THRESHOLD:
                 if _PROFILE:
                     _prof["calc_priority_calls"] += 1
                     _prof["calc_priority_fallbacks"] += 1
@@ -592,8 +617,7 @@ def _install() -> None:
             cache_root = getattr(self.tree_cache, "root_node", None)
             rid_to_int = {r.rid: _intern(r.rid) for r in waiting_queue}
             dualwalk_hits = None
-            _skip_dualwalk = _flag("PEEK_ONLINE_LPM_SKIP_DUALWALK")
-            if cache_root is not None and not _skip_dualwalk:
+            if cache_root is not None and not _SKIP_DUALWALK:
                 def _cache_match(tokens):
                     cur = cache_root
                     consumed = 0
@@ -634,11 +658,17 @@ def _install() -> None:
             if _PEEK_CLPM:
                 # Cluster-LPM: arrival-bucket + section + tiebreak ladder.
                 from peek.online.lpm_integration import peek_clpm_sort_inplace
-                arr_ts_map = {
-                    rid_str: slot.get("arrive_ts", 0.0)
-                    for rid_str, slot in _phase_timings.items()
-                    if "arrive_ts" in slot
-                } if _PHASE_TRACKING else None
+                # Build from the waiting queue, NOT from _phase_timings: that
+                # dict is the run's whole measurement record (every rid ever
+                # seen), so iterating it here would cost O(all requests
+                # processed) on every scheduler tick. Only queued rids are read.
+                arr_ts_map = None
+                if _PHASE_TRACKING:
+                    arr_ts_map = {}
+                    for _r in waiting_queue:
+                        _slot = _phase_timings.get(_r.rid)
+                        if _slot is not None and "arrive_ts" in _slot:
+                            arr_ts_map[_r.rid] = _slot["arrive_ts"]
                 _peek_depr = peek_clpm_sort_inplace(
                     waiting_queue,
                     rid_to_int,

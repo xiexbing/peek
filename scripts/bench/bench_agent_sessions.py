@@ -27,7 +27,7 @@ import json
 import random
 import statistics
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from typing import List, Optional
 
 import aiohttp

@@ -525,7 +525,7 @@ def main():
         seed=args.seed,
     ))
 
-    print(f"\nResults:")
+    print("\nResults:")
     print(result.summary())
 
     if args.output_json:

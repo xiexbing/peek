@@ -196,7 +196,7 @@ class VllmPeekEngine:
         ready: list[tuple[float, tuple, list[Any], int]] = []
         buffering: list[tuple[float, tuple, list[Any], int]] = []
         for item in scored:
-            score, key, members, cached_blocks = item
+            _score, key, members, _cached_blocks = item
             age = now - self._group_first_seen.get(key, now)
             if len(members) >= threshold or age >= max_wait_s:
                 ready.append(item)

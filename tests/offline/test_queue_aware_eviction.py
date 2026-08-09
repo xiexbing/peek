@@ -27,9 +27,7 @@ pytest.importorskip("sglang")
 pytestmark = pytest.mark.engine
 
 import heapq
-import sys
 import time
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -40,7 +38,6 @@ import pytest
 
 from sglang.srt.mem_cache.evict_policy import (
     QueueAwareStrategy,
-    LRUStrategy,
 )
 
 class _MockNode:
@@ -144,7 +141,7 @@ class TestQueueAwareStrategyPriority:
 _radix_import_error = None
 try:
     from sglang.srt.mem_cache.cache_init_params import CacheInitParams
-    from sglang.srt.mem_cache.radix_cache import RadixCache, RadixKey, TreeNode
+    from sglang.srt.mem_cache.radix_cache import RadixCache, RadixKey
     from sglang.srt.mem_cache.base_prefix_cache import (
         EvictParams,
         InsertParams,

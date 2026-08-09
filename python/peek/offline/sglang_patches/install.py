@@ -33,7 +33,6 @@ To verify:
 from __future__ import annotations
 
 import importlib.util
-import os
 import re
 import shutil
 import sys
@@ -125,7 +124,7 @@ def patch_evict_policy(sglang_dir: Path) -> bool:
         backup(path)
         text = text.rstrip() + "\n" + QUEUE_AWARE_STRATEGY_CODE
         changed = True
-        print(f"  PATCHED: evict_policy.py -- added QueueAwareStrategy")
+        print("  PATCHED: evict_policy.py -- added QueueAwareStrategy")
 
     # Fix stale superkv references (from old project name)
     if "superkv" in text:
@@ -133,12 +132,12 @@ def patch_evict_policy(sglang_dir: Path) -> bool:
             backup(path)
         text = text.replace("superkv", "peek")
         changed = True
-        print(f"  PATCHED: evict_policy.py -- replaced superkv -> peek")
+        print("  PATCHED: evict_policy.py -- replaced superkv -> peek")
 
     if changed:
         path.write_text(text)
     else:
-        print(f"  OK: evict_policy.py already has QueueAwareStrategy")
+        print("  OK: evict_policy.py already has QueueAwareStrategy")
     return True
 
 
@@ -259,7 +258,7 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
                 count=1,
             )
         changed = True
-        print(f"  PATCHED: radix_cache.py -- added QueueAwareStrategy import")
+        print("  PATCHED: radix_cache.py -- added QueueAwareStrategy import")
 
     # 2b. Add queue_ref_count attribute to TreeNode.__init__
     if "queue_ref_count" not in text:
@@ -275,7 +274,7 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: radix_cache.py -- added queue_ref_count to TreeNode")
+        print("  PATCHED: radix_cache.py -- added queue_ref_count to TreeNode")
 
     # 2c. Add queue-aware eviction strategy case
     if '"queue-aware"' not in text:
@@ -297,7 +296,7 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: radix_cache.py -- added queue-aware eviction strategy case")
+        print("  PATCHED: radix_cache.py -- added queue-aware eviction strategy case")
 
     # 2d. Fix _split_node to inherit queue_ref_count
     if "queue_ref_count = child.queue_ref_count" not in text:
@@ -313,7 +312,7 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: radix_cache.py -- _split_node inherits queue_ref_count")
+        print("  PATCHED: radix_cache.py -- _split_node inherits queue_ref_count")
 
     # 2e. Add queue ref methods to RadixCache class
     if "inc_queue_ref" not in text:
@@ -327,7 +326,7 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: radix_cache.py -- added inc/dec/reset_all_queue_refs methods")
+        print("  PATCHED: radix_cache.py -- added inc/dec/reset_all_queue_refs methods")
 
     # 2f. Add update_lru param to _match_prefix_helper
     if "update_lru" not in text:
@@ -358,7 +357,7 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: radix_cache.py -- _match_prefix_helper supports update_lru=False")
+        print("  PATCHED: radix_cache.py -- _match_prefix_helper supports update_lru=False")
 
     # 2g. Add match_prefix_readonly method
     if "match_prefix_readonly" not in text:
@@ -371,7 +370,7 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
             count=1,
         )
         changed = True
-        print(f"  PATCHED: radix_cache.py -- added match_prefix_readonly method")
+        print("  PATCHED: radix_cache.py -- added match_prefix_readonly method")
 
     # 2h. Fix stale superkv references (from old project name)
     if "superkv" in text:
@@ -379,10 +378,10 @@ def patch_radix_cache(sglang_dir: Path) -> bool:
             backup(path)
         text = text.replace("superkv", "peek")
         changed = True
-        print(f"  PATCHED: radix_cache.py -- replaced superkv -> peek")
+        print("  PATCHED: radix_cache.py -- replaced superkv -> peek")
 
     if not changed:
-        print(f"  OK: radix_cache.py already fully patched")
+        print("  OK: radix_cache.py already fully patched")
 
     if changed:
         path.write_text(text)
@@ -450,9 +449,9 @@ def patch_schedule_policy(sglang_dir: Path) -> bool:
         if new_text != text:
             text = new_text
             changed = True
-            print(f"  PATCHED: schedule_policy.py -- PeekEngine hook in calc_priority")
+            print("  PATCHED: schedule_policy.py -- PeekEngine hook in calc_priority")
         else:
-            print(f"  WARNING: Could not patch PeekEngine hook -- calc_priority pattern not found")
+            print("  WARNING: Could not patch PeekEngine hook -- calc_priority pattern not found")
 
     # 3b. Skip pre-matched requests in _compute_prefix_matches.
     # Insert at the start of the per-request loop body:
@@ -472,9 +471,9 @@ def patch_schedule_policy(sglang_dir: Path) -> bool:
         if new_text != text:
             text = new_text
             changed = True
-            print(f"  PATCHED: schedule_policy.py -- _peek_matched skip in _compute_prefix_matches")
+            print("  PATCHED: schedule_policy.py -- _peek_matched skip in _compute_prefix_matches")
         else:
-            print(f"  WARNING: Could not patch _peek_matched skip -- loop pattern not found")
+            print("  WARNING: Could not patch _peek_matched skip -- loop pattern not found")
 
     # 3c. Fix stale superkv references (from old project name)
     if "superkv" in text:
@@ -482,10 +481,10 @@ def patch_schedule_policy(sglang_dir: Path) -> bool:
             backup(path)
         text = text.replace("superkv", "peek")
         changed = True
-        print(f"  PATCHED: schedule_policy.py -- replaced superkv -> peek")
+        print("  PATCHED: schedule_policy.py -- replaced superkv -> peek")
 
     if not changed:
-        print(f"  OK: schedule_policy.py already fully patched")
+        print("  OK: schedule_policy.py already fully patched")
 
     if changed:
         path.write_text(text)
@@ -506,7 +505,7 @@ def patch_server_args(sglang_dir: Path) -> bool:
     text = path.read_text()
 
     if '"queue-aware"' in text:
-        print(f"  OK: server_args.py already has queue-aware in choices")
+        print("  OK: server_args.py already has queue-aware in choices")
         return True
 
     backup(path)
@@ -520,7 +519,7 @@ def patch_server_args(sglang_dir: Path) -> bool:
     )
 
     path.write_text(text)
-    print(f"  PATCHED: server_args.py -- added 'queue-aware' to eviction choices")
+    print("  PATCHED: server_args.py -- added 'queue-aware' to eviction choices")
     return True
 
 

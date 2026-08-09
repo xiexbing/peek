@@ -35,7 +35,6 @@ pytestmark = pytest.mark.gpu
 import random
 import unittest
 from collections import Counter, defaultdict
-from types import SimpleNamespace
 
 from peek.offline.benchmarks.poisson_client import load_requests
 from peek.offline.engine import CacheStateStore, PeekEngine

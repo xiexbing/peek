@@ -13,13 +13,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 import os
 import random
 import sys
 import time
-from typing import List, Optional
+from typing import List
 
 import aiohttp
 
@@ -126,7 +125,7 @@ def generate_workload_singleton(
     )
     if len(prompts) < n:
         if not prompts:
-            print(f"[bench-lmsys] FATAL: 0 prompts loaded; aborting", file=sys.stderr)
+            print("[bench-lmsys] FATAL: 0 prompts loaded; aborting", file=sys.stderr)
             sys.exit(1)
         print(f"[bench-lmsys] only {len(prompts)} prompts available for N={n}; "
               f"cycling to fill (will introduce some sharing -- verify pool_size)", file=sys.stderr)

@@ -290,10 +290,19 @@ impl PyPendingTree {
     /// Order: descending `main_hit` (cache-warm first). A cold request
     /// (`main_hit <= check_threshold`) that shares at least
     /// `deprioritize_threshold` prefix tokens with an earlier-arriving cold
-    /// request is deprioritized to the tail -- the first request of each cluster
-    /// is the pioneer, the rest are siblings. Ties keep arrival order. All
-    /// cluster lookups + dedup + stable sort run in Rust (no per-request
+    /// request is deprioritized to the tail -- the first request claiming a
+    /// given prefix is the pioneer, the rest are siblings. Ties keep arrival
+    /// order. All lookups + dedup + stable sort run in Rust (no per-request
     /// Python<->Rust crossings).
+    ///
+    /// The claim key is the position of the request's first
+    /// `deprioritize_threshold` tokens, which is what "shares >= threshold
+    /// tokens" actually means. Keying on `cluster_info`'s cluster node instead
+    /// would be wrong: that returns the *deepest* ancestor with
+    /// `pending_count >= 2`, so nested clusters get distinct ids and a request
+    /// sharing the shallower prefix would never see it as claimed. Requests
+    /// shorter than the threshold can't share that many tokens with anyone, so
+    /// they neither claim nor get deprioritized.
     #[pyo3(signature = (reqs, check_threshold = 32, deprioritize_threshold = 32))]
     fn lpm_order(
         &self,
@@ -302,16 +311,20 @@ impl PyPendingTree {
         deprioritize_threshold: usize,
     ) -> Vec<usize> {
         let mut keys: Vec<(i64, bool)> = Vec::with_capacity(reqs.len());
-        let mut seen_clusters: FxHashSet<NodeId> = FxHashSet::default();
+        let mut seen_prefixes: FxHashSet<(NodeId, usize)> = FxHashSet::default();
         for &(rid, main_hit) in &reqs {
             let mut is_deprioritized = false;
-            if main_hit <= check_threshold {
-                if let Some((cluster_node, depth, _size)) = self.inner.cluster_info(rid) {
-                    // Cluster already claimed by an earlier (pioneer) request?
-                    if depth >= deprioritize_threshold
-                        && !seen_clusters.insert(cluster_node)
-                    {
-                        is_deprioritized = true;
+            if main_hit <= check_threshold && deprioritize_threshold > 0 {
+                if let Some(tokens) = self.inner.paths.get(&rid) {
+                    if tokens.len() >= deprioritize_threshold {
+                        let claim = self
+                            .inner
+                            .tree
+                            .prefix_position(&tokens[..deprioritize_threshold]);
+                        // Prefix already claimed by an earlier (pioneer) request?
+                        if !seen_prefixes.insert(claim) {
+                            is_deprioritized = true;
+                        }
                     }
                 }
             }

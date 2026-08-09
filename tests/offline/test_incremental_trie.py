@@ -27,7 +27,7 @@ import random
 import unittest
 
 from peek.offline.trie import PrefixTrie
-from peek.offline.reorder import PeekConfig, PeekDispatcher
+from peek.offline.reorder import PeekDispatcher
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +401,7 @@ class TestIncrementalDispatcher(unittest.TestCase):
         rank_a = int(dispatched[-3]["rid"].split(":")[1])  # a-4
         rank_b = int(dispatched[-1]["rid"].split(":")[1])  # b-1
         self.assertLess(rank_a, rank_b,
-                        f"Group A (5 reqs) should rank before Group B (2 reqs)")
+                        "Group A (5 reqs) should rank before Group B (2 reqs)")
 
     def test_interleaved_requests_all_dispatched(self):
         """All submitted requests must be dispatched."""

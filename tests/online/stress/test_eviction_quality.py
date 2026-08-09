@@ -39,7 +39,7 @@ pytest.importorskip("sglang")
 pytestmark = pytest.mark.engine
 
 import time
-from typing import List, Set, Tuple
+from typing import List
 
 import pytest
 import torch
@@ -148,7 +148,7 @@ def test_peek_eviction_saves_reprefill_vs_lru(capsys: pytest.CaptureFixture) -> 
         )
         print(f"  cold leaves: {len(cold_leaves)} x {len(cold_leaves[0])} tokens, 0 pending demand")
         print(f"  evicted {num_tokens_to_evict} tokens from each cache")
-        print(f"  re-prefill tokens caused BY THE EVICTION (Δ from baseline):")
+        print("  re-prefill tokens caused BY THE EVICTION (Δ from baseline):")
         print(f"    LRU:             {lru_cost:>6d}")
         print(f"    PeekDemand:      {peek_cost:>6d}")
         print(f"  peek saves {lru_cost - peek_cost} re-prefill tokens")

@@ -43,7 +43,7 @@ pytestmark = pytest.mark.engine
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, List, Tuple
+from typing import Any, List
 
 import pytest
 import torch

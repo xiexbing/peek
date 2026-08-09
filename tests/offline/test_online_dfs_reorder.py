@@ -25,7 +25,7 @@ Verifies that:
 import random
 import unittest
 
-from peek.offline.reorder import reorder_for_prefix_sharing, PeekConfig, PeekDispatcher
+from peek.offline.reorder import reorder_for_prefix_sharing, PeekDispatcher
 from peek.offline.trie import PrefixTrie
 
 

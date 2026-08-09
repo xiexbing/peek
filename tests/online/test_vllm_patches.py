@@ -148,7 +148,7 @@ def test_pending_tree_top_level_export():
     """patch_hook imports ``PendingTree`` and ``PeekDemandStrategy`` from
     the top-level ``peek`` package. Both must be present -- a regression
     in __init__.py would silently disable the integration."""
-    from peek import PendingTree, PeekDemandStrategy
+    from peek import PendingTree
     assert PendingTree is not None
     # Smoke: instantiate and exercise the most basic ops.
     t = PendingTree()

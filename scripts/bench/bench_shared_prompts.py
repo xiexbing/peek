@@ -48,7 +48,6 @@ def _try_load_loogle(max_docs: int):
     Returns list[{context, title, questions}] on success, None on failure
     (no network, dataset cache missing, etc).
     """
-    import json as _json
     try:
         from datasets import load_dataset  # type: ignore
     except Exception as e:
@@ -735,12 +734,12 @@ def summarize(
     # tokenizer pre-processing. We treat server arrive_ts as the authority
     # for server-side queue start.
     server_phases = _load_server_phases(args.phase_dump_path)
-    q_samples, p_samples, d_samples, cq_samples = [], [], [], []
+    q_samples, p_samples, d_samples = [], [], []
     matched = 0
     # schedule_times indexed by req_id (req.arrival_time_s is seconds since
     # the wall_start, captured during dispatch setup).
     for m in ok:
-        q_ms = p_ms = d_ms = cq_ms = None
+        q_ms = p_ms = d_ms = None
         # Client-side queue wait (semaphore delay): time between when the
         # request was SCHEDULED to arrive and when it actually dispatched.
         # Requires that we recorded arrival_time_s on workload gen AND

@@ -116,8 +116,10 @@ def _bump_bucket(value: int) -> None:
     else:
         bkt = "100k+"
     _diag["gp_demand_by_bucket"][bkt] = _diag["gp_demand_by_bucket"].get(bkt, 0) + 1
-    if value > _diag["max_demand_seen"]:
-        _diag["max_demand_seen"] = value
+    # NB: max_demand_seen is tracked by the caller, which also has path_len to
+    # record alongside it. Updating it here too would make the caller's
+    # `value > max_demand_seen` test always false and strand
+    # path_len_when_max_demand at its initial 0.
 
 
 def _dump_diag() -> None:
@@ -263,7 +265,10 @@ def _max_ancestor_demand(node, tree) -> Tuple[int, int, int]:
     levels = 0
     ancestor: list[int] = []
     for seg in reversed(segments):
-        ancestor = ancestor + seg
+        # extend, not `ancestor + seg`: the concatenation rebuilt the whole
+        # prefix at every level, making this quadratic in path length. Nothing
+        # retains the shorter prefixes, so mutating in place is equivalent.
+        ancestor.extend(seg)
         levels += 1
         d = tree.pending_demand(ancestor)
         value = d * len(ancestor)

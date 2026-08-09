@@ -33,11 +33,10 @@ import pytest
 pytestmark = pytest.mark.gpu
 import random
 import unittest
-from collections import Counter, defaultdict
+from collections import Counter
 
 from peek.offline.benchmarks.poisson_client import load_requests
 from peek.offline.reorder import PeekDispatcher
-from peek.offline.trie import PrefixTrie
 
 
 # ---------------------------------------------------------------------------

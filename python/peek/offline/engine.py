@@ -341,7 +341,7 @@ class PeekEngine:
         protect_k = min(num_groups, max(1, cache_capacity_groups * 3 // 4))
 
         protected_nodes: list[Any] = []
-        for i, (_, _, _, members, _, cache_frac, rep_node) in enumerate(scored):
+        for i, (_, _, _, _members, _, cache_frac, rep_node) in enumerate(scored):
             if i >= protect_k:
                 break
             if rep_node is not None and cache_frac > 0:
@@ -527,7 +527,7 @@ class PeekEngine:
         scored: list[tuple[float, list[Any]]] = []
         target_nodes: list[Any] = []
 
-        for key, normal, queue_count, prefix_len, cache_frac, rep_node in group_stats:
+        for key, normal, queue_count, _prefix_len, cache_frac, rep_node in group_stats:
             is_target = key in target_keys
             target_bonus = 10000 if is_target else 0
             score = target_bonus + cache_frac * 1000 + queue_count
