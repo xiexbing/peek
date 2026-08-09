@@ -241,10 +241,10 @@ def _run_peek_lpm_pipeline(queue: List[MockReq]) -> List[int]:
     )
     return [r.rid for r in q]
 
-def _run_peek_clpm_pipeline(queue: List[MockReq], window_ms: int = 0) -> List[int]:
-    """peek_clpm with window_ms=0 + no sharing-specific content => should reduce
-    to stock LPM order (warm by main_hit desc -> pioneer arrival -> sibling
-    arrival). With window_ms>0, it diverges and needs its own reference.
+def _run_peek_clpm_pipeline(queue: List[MockReq]) -> List[int]:
+    """peek_clpm with no sharing-specific content and no arrival_ts => should
+    reduce to stock LPM order (warm by main_hit desc -> pioneer arrival ->
+    sibling arrival), modulo the req_score/cluster_size tiebreaks.
     """
     from peek.online.lpm_integration import peek_clpm_sort_inplace
     tree = PendingTree()
@@ -258,7 +258,6 @@ def _run_peek_clpm_pipeline(queue: List[MockReq], window_ms: int = 0) -> List[in
         q,
         rid_to_int,
         tree,
-        window_ms=window_ms,
         check_threshold=CHECK_THRESHOLD,
         deprioritize_threshold=DEPRIORITIZE_THRESHOLD,
         main_hits=None,
@@ -268,9 +267,9 @@ def _run_peek_clpm_pipeline(queue: List[MockReq], window_ms: int = 0) -> List[in
 
 @pytest.mark.parametrize("n,seed", [(100, 0), (500, 1)])
 def test_peek_clpm_with_zero_window_matches_sglang_lpm(n: int, seed: int) -> None:
-    """With window_ms=0 and no arrival_ts, peek_clpm's primary axis
-    (arrival_bucket) collapses to zero for every req. Within section,
-    main_hit is still the primary ordering key, so warm reqs still sort
+    """With no arrival_ts, peek_clpm's Lane A key is
+    (section, -main_hit, -req_score, -cluster_size, arrival_ns). Within a
+    section, main_hit is the primary ordering key, so warm reqs still sort
     by main_hit desc. peek_clpm adds req_score and cluster_size as
     secondary/tertiary keys -- these break ties that stock LPM preserves
     as arrival order.
@@ -282,7 +281,7 @@ def test_peek_clpm_with_zero_window_matches_sglang_lpm(n: int, seed: int) -> Non
     queue = make_workload(n, seed=seed)
     s_dep = sglang_compute_deprioritized(queue)
     s_order = run_policy(queue, s_dep)
-    p_order = _run_peek_clpm_pipeline(queue, window_ms=0)
+    p_order = _run_peek_clpm_pipeline(queue)
     # Warm section (main_hit > CHECK_THRESHOLD): same arrival order within
     # same-main_hit buckets. peek_clpm may reorder by cluster_score within
     # equal-main_hit -- verify warm reqs with DIFFERENT main_hit are in the

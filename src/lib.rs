@@ -18,12 +18,11 @@ mod pending;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-use crate::pending::{PyPendingTree, lpm_sort_order, peek_clpm_sort_order};
+use crate::pending::{PyPendingTree, lpm_sort_order};
 
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPendingTree>()?;
     m.add_function(wrap_pyfunction!(lpm_sort_order, m)?)?;
-    m.add_function(wrap_pyfunction!(peek_clpm_sort_order, m)?)?;
     Ok(())
 }

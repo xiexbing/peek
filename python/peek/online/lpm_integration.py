@@ -268,22 +268,20 @@ def peek_sort_inplace(
 # Builds on peek_lpm:
 #   - Same pioneer/sibling semantics (token-prefix claim set for deprio)
 #   - Same LPM-exact main_hit signal
-# Adds three signals stock LPM can't cheaply produce:
-#   - arrival_bucket  = floor((now − arrive_ts) / W)  -> FCFS across windows
+# Adds two signals stock LPM can't cheaply produce:
 #   - req_score       = Σ (pending_count x edge_length) along ancestors -> peek-native
 #                        dense-subtree weight
 #   - cluster_size    = pending_count at finest cluster -> broader cluster wins
 #
-# Sort key per req:
-#   (section_id, -main_hit, arrival_bucket, -req_score, -cluster_size, arrival_ns)
+# Lane A sort key per req:
+#   (section_id, -main_hit, -req_score, -cluster_size, arrival_ns)
 #
 # Sections: 0 = warm, 1 = cold pioneer, 2 = cold sibling.
 # Deprio banishment preserved (sibling -> section 2 -> tail).
 # Key order rationale: section/main_hit primary preserves LPM cache locality;
-# bucket kicks in only as a tiebreak among cache-equal reqs (anti-starvation
-# within same-main_hit bucket); req_score/cluster_size tiebreak below bucket.
-# Prior ordering (bucket primary) fought cache locality on shared-prompt
-# workloads where reqs of the same group arrive dispersed across many buckets.
+# req_score/cluster_size tiebreak below it. Cross-window anti-starvation is
+# handled by the separate fairness lane (Lane B, oldest-first) interleaved via
+# the stride scheduler, not by an arrival bucket in the Lane A key.
 # ---------------------------------------------------------------------------
 
 
@@ -292,7 +290,6 @@ def peek_clpm_sort_inplace(
     rid_to_int: Dict[str, int],
     tree: PendingTree,
     *,
-    window_ms: int = 500,  # retained for back-compat; unused
     check_threshold: int = 32,
     deprioritize_threshold: int = 32,
     main_hits: Optional[Dict[int, int]] = None,

@@ -58,8 +58,6 @@ class VllmPeekEngine:
         self._profile_total = 0.0
         # group key -> monotonic timestamp when group first appeared
         self._group_first_seen: dict[tuple, float] = {}
-        # group key -> monotonic timestamp when group was last in the queue
-        self._group_last_seen: dict[tuple, float] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -128,7 +126,6 @@ class VllmPeekEngine:
 
         Returns list of (score, key, members, cached_blocks).
         """
-        now = _time.monotonic()
         bp = self.block_pool
         gids = self.group_ids
 
@@ -151,9 +148,6 @@ class VllmPeekEngine:
                 + group_size * 1e-3
             )
             group_data.append((score, key, members, cached_blocks))
-
-            # Update last-seen
-            self._group_last_seen[key] = now
 
         return group_data
 

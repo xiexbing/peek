@@ -82,7 +82,6 @@ _SCHEDULER = (
 )
 _PEEK_LPM = _flag("PEEK_ONLINE_LPM")
 _PEEK_CLPM = _flag("PEEK_ONLINE_CLPM")
-_PEEK_CLPM_WINDOW_MS = int(os.environ.get("PEEK_ONLINE_CLPM_WINDOW_MS", "500"))
 _PEEK_CLPM_AGE_ALPHA = float(os.environ.get("PEEK_ONLINE_CLPM_AGE_ALPHA", "0"))
 _PEEK_CLPM_BIGLANE_SHARE = float(os.environ.get("PEEK_ONLINE_CLPM_BIGLANE_SHARE", "0.7"))
 _PEEK_CLPM_GROUP_MAJOR = _flag("PEEK_ONLINE_CLPM_GROUP_MAJOR")
@@ -466,7 +465,6 @@ def _install() -> None:
                 adapters,
                 rid_to_int,
                 peek_tree,
-                window_ms=_PEEK_CLPM_WINDOW_MS,
                 check_threshold=_CHECK_THRESHOLD,
                 deprioritize_threshold=_DEPRIO_THRESHOLD,
                 main_hits=main_hits_by_int,

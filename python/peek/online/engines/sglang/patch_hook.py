@@ -131,17 +131,14 @@ _LPM_ORDER_DIFF_PATH = os.environ.get(
 # cluster-size ordering.
 _PEEK_LPM = _flag("PEEK_ONLINE_LPM")
 # PEEK_ONLINE_CLPM=1 -- cluster-LPM. Keeps peek_lpm's LPM-exact main_hit
-# primary ordering, then applies a 4-key tiebreak ladder within each
-# arrival-time window bucket:
-#   (arrival_bucket, section_id, -main_hit, -req_score, -cluster_size, arrival_ns)
+# primary ordering, then applies a tiebreak ladder (Lane A key):
+#   (section_id, -main_hit, -req_score, -cluster_size, arrival_ns)
 # where section_id ∈ {0=warm, 1=pioneer, 2=sibling} and
 #   req_score = Σ (pending_count x edge_length) along rid's ancestor chain
 #              in peek's pending tree.
-# Implies PEEK_ONLINE_SCHEDULER=1. `PEEK_ONLINE_CLPM_WINDOW_MS` tunes the window (default
-# 500 ms). If `PEEK_ONLINE_CLPM_WINDOW_MS=0`, bucketing is disabled and the policy
-# degrades to peek_lpm with the extra tiebreaks (still ≥ peek_lpm).
+# Implies PEEK_ONLINE_SCHEDULER=1. Cross-window fairness is provided by the
+# stride-interleaved fairness lane (Lane B), not an arrival-window bucket.
 _PEEK_CLPM = _flag("PEEK_ONLINE_CLPM")
-_PEEK_CLPM_WINDOW_MS = int(os.environ.get("PEEK_ONLINE_CLPM_WINDOW_MS", "500"))
 # Age-weighted main_hit alpha: virtual main_hit tokens added per second of
 # wait. Default 400 -> 5s-waited cold req ties a warm req at main_hit=2000.
 # Set 0 to disable aging (falls back to raw main_hit + req_score tiebreaks).
@@ -673,7 +670,6 @@ def _install() -> None:
                     waiting_queue,
                     rid_to_int,
                     peek_tree,
-                    window_ms=_PEEK_CLPM_WINDOW_MS,
                     check_threshold=IN_BATCH_PREFIX_CACHING_CHECK_THRESHOLD,
                     deprioritize_threshold=IN_BATCH_PREFIX_CACHING_DEPRIORITIZE_THRESHOLD,
                     main_hits=dualwalk_hits,
@@ -691,7 +687,11 @@ def _install() -> None:
                     peek_tree,
                     check_threshold=IN_BATCH_PREFIX_CACHING_CHECK_THRESHOLD,
                     deprioritize_threshold=IN_BATCH_PREFIX_CACHING_DEPRIORITIZE_THRESHOLD,
-                    rank_by_cluster_size=False,  # plain LPM order; no cluster grouping
+                    # Honor PEEK_ONLINE_RANK_BY_SIZE (default on): rank pioneers
+                    # by cluster size. Set the flag to 0 for byte-exact stock
+                    # LPM order in A/B runs. peek_lpm_sort forces plain LPM
+                    # regardless (it takes the Rust fast path below).
+                    rank_by_cluster_size=_RANK_BY_SIZE,
                     main_hits=dualwalk_hits,
                     peek_lpm_sort=_PEEK_LPM,
                 )

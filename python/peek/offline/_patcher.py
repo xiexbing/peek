@@ -49,7 +49,7 @@ def _is_vllm_patched() -> bool:
         # Check if the dataclass has queue_ref_count field
         return "queue_ref_count" in (getattr(block_cls, "__dataclass_fields__", {}) or {}
                                      ) or hasattr(block_cls(0), "queue_ref_count")
-    except (ImportError, ModuleNotFoundError, Exception):
+    except Exception:
         return False
 
 

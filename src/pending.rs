@@ -437,30 +437,6 @@ impl PyPendingTree {
     }
 }
 
-/// Cluster-LPM sort: lexicographic 6-tuple stable sort.
-///
-/// Sort key per queue position:
-///   (arrival_bucket, section_id, -main_hit, -req_score, -cluster_size, arrival_ns)
-///
-/// Semantics:
-///   * arrival_bucket -- primary (FCFS across windows; no starvation beyond W)
-///   * section_id     -- 0=warm, 1=cold pioneer, 2=cold sibling (deprio tail)
-///   * -main_hit      -- LPM primary within section
-///   * -req_score     -- cumulative (pending_count x edge_length) along ancestors
-///   * -cluster_size  -- shallow subtree with many reqs wins
-///   * arrival_ns     -- FCFS final tiebreak
-///
-/// Returns indices in admission order. Stable: tuple equality preserves input order.
-#[pyfunction]
-pub fn peek_clpm_sort_order(
-    keys: Vec<(i64, i64, i64, i64, i64, i64)>,
-) -> Vec<usize> {
-    let n = keys.len();
-    let mut idx: Vec<usize> = (0..n).collect();
-    idx.sort_by(|&a, &b| keys[a].cmp(&keys[b]));
-    idx
-}
-
 /// LPM-faithful stable sort of waiting-queue positions.
 ///
 /// `keys[i]` is the (main_hit, is_deprioritized) pair for the i-th waiting

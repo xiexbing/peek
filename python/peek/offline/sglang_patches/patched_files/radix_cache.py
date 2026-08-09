@@ -27,7 +27,7 @@ import logging
 import sys
 import time
 from collections import defaultdict
-from functools import lru_cache, partial
+from functools import partial
 from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
 
 import torch
@@ -154,8 +154,10 @@ class TreeNode:
             return None
         return self.hash_value[-1]
 
-    @lru_cache(maxsize=1)
     def get_prefix_hash_values(self, node: TreeNode) -> List[str]:
+        # NB: no @lru_cache here. Caching a bound method keys on (self, node)
+        # and pins every TreeNode it is ever called with, defeating eviction/
+        # GC; maxsize=1 also returned stale values across nodes.
         if node is None or node.hash_value is None:
             return []
 
@@ -751,10 +753,17 @@ class RadixCache(BasePrefixCache):
             prefix_len = self.key_match_fn(child.key, key)
             if prefix_len < len(child.key):
                 new_node = self._split_node(child.key, child, prefix_len)
+                # Frequency signal for LFU/LRFU: count a hit on the matched
+                # node. Gated on update_lru so match_prefix_readonly (used for
+                # not-yet-admitted probing) doesn't inflate the count.
+                if update_lru:
+                    new_node.hit_count += 1
                 value.append(new_node.value)
                 node = new_node
                 break
             else:
+                if update_lru:
+                    child.hit_count += 1
                 value.append(child.value)
                 node = child
                 key = key[prefix_len:]
@@ -774,10 +783,11 @@ class RadixCache(BasePrefixCache):
         new_node.queue_ref_count = child.queue_ref_count
         new_node.key = child.key[:split_len]
         new_node.value = child.value[:split_len].clone()
-        # Maintain cached depth: new_node takes child's original depth,
-        # child's depth increases by split_len (now deeper)
-        new_node.depth = child.depth
-        child.depth = child.depth + split_len
+        # Maintain cached depth (= total prefix length from root to a node's
+        # END). The split inserts new_node as the shared-prefix parent: it ends
+        # `split_len` tokens past its parent, so it is SHALLOWER than child.
+        # child still ends where it did, so child.depth is unchanged.
+        new_node.depth = new_node.parent.depth + split_len
         child.parent = new_node
         child.key = child.key[split_len:]
         child.value = child.value[split_len:].clone()

@@ -178,16 +178,8 @@ def patch_kv_cache_utils(vllm_dir: Path) -> bool:
             text,
             count=1,
         )
-        # Fallback: insert before end of file if get_all_free_blocks not found
+        # Fallback: append to the class if get_all_free_blocks wasn't found.
         if "popleft_queue_aware" not in text:
-            # Try inserting after popleft_n
-            text = re.sub(
-                r"(        return ret\n\n    def remove\b)",
-                r"\1",
-                text,
-                count=1,
-            )
-            # Just append to the class by finding the remove method and adding after
             text = text.rstrip() + "\n" + queue_aware_method
         changed = True
         print("  PATCHED: kv_cache_utils.py -- added popleft_queue_aware method")

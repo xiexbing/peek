@@ -28,7 +28,7 @@ Design principles:
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Protocol, Sequence
+from typing import Any, Sequence
 
 from peek.offline.trie import PrefixTrie
 
@@ -54,11 +54,6 @@ def detect_sharing(prefix_keys: Sequence[Any]) -> bool:
 # ---------------------------------------------------------------------------
 # Prefix-aware request reordering (server-side, DFS-weight style)
 # ---------------------------------------------------------------------------
-
-class _HasBlockHashes(Protocol):
-    """Minimal interface for a waiting request object."""
-    block_hashes: Sequence[Any]
-
 
 def reorder_requests_by_prefix(
     new_requests: list[Any],
@@ -90,12 +85,6 @@ def reorder_requests_by_prefix(
 # ---------------------------------------------------------------------------
 # Queue-aware eviction: reference counting
 # ---------------------------------------------------------------------------
-
-class _BlockPool(Protocol):
-    """Minimal interface for a block pool that supports queue ref counts."""
-    def reset_queue_ref_counts(self) -> None: ...
-    def inc_queue_ref_count(self, blocks: list[Any]) -> None: ...
-
 
 def update_queue_ref_counts(
     new_requests: list[Any],
@@ -330,10 +319,6 @@ def vllm_group_schedule(
 # vLLM top-level hook: single entry point called from patched scheduler
 # ---------------------------------------------------------------------------
 
-# Module-level throttle state keyed by scheduler id.
-_vllm_counters: dict[int, int] = {}
-_VLLM_THROTTLE_INTERVAL = 1
-
 # Lazy-init VllmPeekEngine instances keyed by scheduler id.
 _vllm_engines: dict[int, Any] = {}
 
@@ -370,15 +355,7 @@ def vllm_on_schedule(scheduler: Any) -> None:
     if not waiting:
         return
 
-    # 4. Throttle: only run every N calls (1 = every call)
-    sid = id(scheduler)
-    if _VLLM_THROTTLE_INTERVAL > 1:
-        count = _vllm_counters.get(sid, 0) + 1
-        _vllm_counters[sid] = count
-        if count % _VLLM_THROTTLE_INTERVAL != 1:
-            return
-
-    # 5. Server-side scheduling: only when PEEK_OFFLINE_SERVER_REORDER=1
+    # 4. Server-side scheduling: only when PEEK_OFFLINE_SERVER_REORDER=1
     #    Offline mode uses client-side reorder; online (Poisson) needs this.
     import os
     if os.environ.get("PEEK_OFFLINE_SERVER_REORDER") != "1":
@@ -398,7 +375,7 @@ def vllm_on_schedule(scheduler: Any) -> None:
                 )
         return
 
-    # 6. Full coordinated scheduling + adaptive protection via VllmPeekEngine
+    # 5. Full coordinated scheduling + adaptive protection via VllmPeekEngine
     sid = id(scheduler)
     engine = _vllm_engines.get(sid)
     if engine is None:

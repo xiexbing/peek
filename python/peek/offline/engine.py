@@ -136,7 +136,6 @@ class PeekEngine:
         self._profile_count = 0
         self._profile_total = 0.0
         self._target_nodes: list[Any] = []
-        self._prev_group_keys: list[tuple] | None = None
         self._cache_state = CacheStateStore.get()
         self._dispatcher: Any = None  # set by PeekDispatcher for direct remove
 
