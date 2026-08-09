@@ -208,42 +208,32 @@ class TestVllmOnSchedule(unittest.TestCase):
         vllm_on_schedule(scheduler)
         assert not reset_called[0]
 
-    def test_throttle_runs_on_first_call(self):
-        """First call (counter=1) should run the hook."""
-        from peek.offline.scheduler import _vllm_counters
+    def test_runs_on_first_call(self):
+        """First call should run the hook."""
         scheduler, reset_called, _ = self._make_scheduler(
             waiting=[
                 SimpleNamespace(num_computed_tokens=0, block_hashes=["A", "X"]),
                 SimpleNamespace(num_computed_tokens=0, block_hashes=["A", "Y"]),
             ],
         )
-        _vllm_counters.pop(id(scheduler), None)
         _vllm_engines.pop(id(scheduler), None)
         vllm_on_schedule(scheduler)
         assert reset_called[0]  # ran on first call
 
-    def test_throttle_skips_intermediate_calls(self):
-        """When throttle interval > 1, intermediate calls are skipped."""
-        import peek.offline.scheduler as _mod
-        from peek.offline.scheduler import _vllm_counters
-
-        old_interval = _mod._VLLM_THROTTLE_INTERVAL
-        _mod._VLLM_THROTTLE_INTERVAL = 2  # run every 2nd call
-        try:
-            scheduler, reset_called, _ = self._make_scheduler(
-                waiting=[
-                    SimpleNamespace(num_computed_tokens=0, block_hashes=["A", "X"]),
-                    SimpleNamespace(num_computed_tokens=0, block_hashes=["A", "Y"]),
-                ],
-            )
-            _vllm_counters.pop(id(scheduler), None)
-            _vllm_engines.pop(id(scheduler), None)
-            vllm_on_schedule(scheduler)  # call 1 -> runs
-            reset_called[0] = False
-            vllm_on_schedule(scheduler)  # call 2 -> throttled
-            assert not reset_called[0]
-        finally:
-            _mod._VLLM_THROTTLE_INTERVAL = old_interval
+    def test_runs_on_every_call(self):
+        """The hook is not throttled: every call runs (no interval gating)."""
+        scheduler, reset_called, _ = self._make_scheduler(
+            waiting=[
+                SimpleNamespace(num_computed_tokens=0, block_hashes=["A", "X"]),
+                SimpleNamespace(num_computed_tokens=0, block_hashes=["A", "Y"]),
+            ],
+        )
+        _vllm_engines.pop(id(scheduler), None)
+        vllm_on_schedule(scheduler)  # call 1 -> runs
+        assert reset_called[0]
+        reset_called[0] = False
+        vllm_on_schedule(scheduler)  # call 2 -> also runs
+        assert reset_called[0]
 
 
 class TestDetectSharingSglang(unittest.TestCase):
