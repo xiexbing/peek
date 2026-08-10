@@ -84,6 +84,25 @@ if [[ "$SKIP_LIBNUMA" != "1" ]]; then
   fi
 fi
 
+# ---------- 0b. ninja (sglang JIT-kernel build tool) ---------------------
+# sglang JIT-compiles CUDA kernels (e.g. rope via tvm_ffi) at server startup
+# and shells out to `ninja`; without it the scheduler subprocess dies with
+# `FileNotFoundError: 'ninja'`. Install system-wide (apt) rather than into the
+# venv so it lands on PATH for the spawned scheduler process, not just the
+# launching shell. Falls back to `pip install ninja` if apt is unavailable.
+if [[ "${SKIP_NINJA:-0}" != "1" ]]; then
+  if ! command -v ninja >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+      echo "[peek+sglang] installing ninja-build (apt)"
+      apt-get update -qq && apt-get install -y ninja-build
+    else
+      echo "[peek+sglang] apt-get unavailable; installing ninja via pip"
+      "$PY" -m pip install --quiet ninja
+    fi
+  fi
+  echo "[peek+sglang] ninja: $(command -v ninja || echo 'NOT FOUND')"
+fi
+
 # ---------- 1. Rust toolchain (cargo) ------------------------------------
 if [[ "$SKIP_RUST" != "1" ]]; then
   if ! command -v cargo >/dev/null 2>&1; then
