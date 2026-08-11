@@ -89,8 +89,13 @@ cell_rate() {
   case "$1-$2" in
     A-moderate)  echo 3   ;;
     A-heavy)     echo 5   ;;
-    B-moderate)  echo 0.40 ;;
-    B-heavy)     echo 0.45 ;;
+    # Recalibrated 2026-08-10 from _w2logs/probe_rate_cellB.sh (stock lpm_lru,
+    # N=300, seed 42). Capacity curve: 0.15 -> ttft 1.7s (eff 0.97), 0.22 ->
+    # 9.8s (eff 0.96), 0.28 -> 45.2s (eff 0.92, knee). The previous 0.40/0.45
+    # sat far past the knee: both saturated to the same achieved throughput,
+    # ttft ran 166-1060s, and seed 242 tipped into collapse (hit 72%->46%).
+    B-moderate)  echo 0.22 ;;
+    B-heavy)     echo 0.28 ;;
     C-moderate)  echo 0.8 ;;
     C-heavy)     echo 1.5 ;;
     D0-moderate) echo 5   ;;
@@ -114,6 +119,14 @@ policy_env() {
     lpm_lru) echo "" ;;
     fcfs_lru) echo "" ;;
     lpm_pe) echo "PEEK_ONLINE_EVICTION=1 PEEK_ONLINE_EVICTION_MODE=cluster" ;;
+    # peek_lpm: LPM-exact ordering sourced entirely from peek primitives
+    # (dualwalk + Rust lpm_sort_order), no cluster-size ranking. A/B baseline
+    # that isolates peek's scheduling data-plane overhead from its ordering
+    # policy. Not a paper Table 2 label -- diagnostic only, so it is NOT in
+    # the default POLICIES list; request it explicitly via POLICIES=peek_lpm.
+    # Set PEEK_ONLINE_VALIDATE_LPM_ORDER=1 alongside to dump per-tick sort
+    # mismatches vs sglang's own _sort_by_longest_prefix.
+    peek_lpm) echo "PEEK_ONLINE_LPM=1 PEEK_ONLINE_RANK_BY_SIZE=0" ;;
     clpm) echo "PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1" ;;
     clpm_gm) echo "PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 PEEK_ONLINE_CLPM_GROUP_MAJOR=1" ;;
     clpm_gm_dl) echo "PEEK_ONLINE_SCHEDULER=1 PEEK_ONLINE_CLPM=1 PEEK_ONLINE_CLPM_GROUP_MAJOR=1 PEEK_ONLINE_CLPM_DYNAMIC_LANE=1" ;;
